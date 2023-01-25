@@ -1,4 +1,4 @@
-# ENESS_Scheduler
+# ENESS Scheduler
 Eness Player Schedule Software
 
 ### Description
