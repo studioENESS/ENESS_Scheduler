@@ -4,6 +4,7 @@ Eness Player Schedule Software
 ![preview](img/eness_logo.png)
 
 ### Description
+![image](https://user-images.githubusercontent.com/69882482/214994276-13080cec-805d-4f9f-b2a9-09e2b2b9004d.png)
 
 Schedule and Player software Running Automation
 
