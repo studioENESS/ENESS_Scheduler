@@ -32,6 +32,8 @@
 #endif
 #define USE_HARD_PATHS 1
 #define AUTO_RUNNER_ONLY
+//#define WELLESLEY
+
 
 struct SItemSchedule
 {
@@ -49,7 +51,7 @@ enum EPS
 };
 
 std::vector<SItemSchedule*> g_vecSchedule;
-
+#ifdef WELLESLEY
 const char* content_item_names[] = {
     "Under The Sea",
     "New England Winter",
@@ -65,6 +67,7 @@ const char* content_item_names[] = {
     "Rain Umbrella",
     "Nothing Scheduled"
 };
+#endif
 
 std::wstring content_filename = L"D:\\Eness_Projects\\2038-Wellesley-Library\\Pixile_Sketch\\Packed\\2038-Wellesley_auto.pxl";
 std::wstring pixile_location = L"C:\\Eness_Projects\\pixile\\Bin\\Studio\\Release\\";
@@ -126,18 +129,21 @@ void SetCurrentProgram(uint32_t programID)
 
     std::ifstream file;
     file.open(cfgFile);
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    nlohmann::json jsonfile;
-    jsonfile = nlohmann::json::parse(buffer);
-    file.close();
-    jsonfile["StateCollections"][0]["Current Selected State"] = programID;
+    if (file.is_open())
+    {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        nlohmann::json jsonfile;
+        jsonfile = nlohmann::json::parse(buffer);
+        file.close();
+        jsonfile["StateCollections"][0]["Current Selected State"] = programID;
 
-    std::ofstream outfile;
-    outfile.open(cfgFile, std::ios::out | std::ios::trunc);
+        std::ofstream outfile;
+        outfile.open(cfgFile, std::ios::out | std::ios::trunc);
 
-    outfile << jsonfile.dump(4);
-    outfile.close();
+        outfile << jsonfile.dump(4);
+        outfile.close();
+    }
 }
 
 bool startPlayer(uint32_t programID)
@@ -221,6 +227,10 @@ bool loadSchedule(const char* sFilename)
     end_hour = jsonfile["time"]["end"]["hour"];
     end_minute = jsonfile["time"]["end"]["minute"];
 
+#ifdef WELLESLEY
+
+
+
     for (auto item : g_vecSchedule)
     {
         delete item;
@@ -246,7 +256,7 @@ bool loadSchedule(const char* sFilename)
         newItem->programID = item["ProgramID"];
         g_vecSchedule.push_back(newItem);
     }
-
+#endif // WELLESLEY
     return bRes;
 }
 
@@ -264,6 +274,7 @@ bool saveSchedule(const char* sFilename)
     jsonfile["time"]["end"]["hour"] = end_hour;
     jsonfile["time"]["end"]["minute"] = end_minute;
 
+#ifdef WELLESLEY
 
     for (const auto sched : g_vecSchedule)
     {
@@ -279,6 +290,7 @@ bool saveSchedule(const char* sFilename)
         jsonfile["schedule"][sched->index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
         jsonfile["schedule"][sched->index]["ProgramID"] = sched->programID;
     }
+#endif
     outfile.open(sFilename, std::ios::out | std::ios::trunc);
 
     outfile << jsonfile.dump(4);
@@ -389,7 +401,7 @@ EPS isProcessRunning(const wchar_t* processName)
 
 int GetCurrentScheduledItem()
 {
-
+#
     time_t currentTime = time(0);
     tm* localTime = localtime(&currentTime);
 
@@ -502,6 +514,7 @@ void pushStyleColours18(float h, bool active = false) {
 
 void createScheduleItem(SItemSchedule* item)
 {
+#ifdef WELLESLEY
     bool bHighlight = false;
     time_t currentTime = time(0);
     tm* localTime = localtime(&currentTime);
@@ -570,7 +583,7 @@ void createScheduleItem(SItemSchedule* item)
     //ImGui::PopStyleColor(18);
 
     ImGui::PopID();
-
+#endif
     //   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 }
@@ -646,6 +659,171 @@ void StyleColorsPhotoshop()
 #endif
 
 
+void DrawMainGUI()
+{
+    static int lastItem = -1;
+    static int item = 0;
+    item = GetCurrentScheduledItem();
+    if (item != lastItem)
+    {
+        SetCurrentProgram(item);
+    }
+    lastItem = item;
+#ifdef IMGUI_HAS_VIEWPORT
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetWorkPos());
+    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+    ImGui::SetNextWindowViewport(viewport->ID);
+#else 
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+#endif
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+
+    static float f = 0.0f;
+    static int counter = 0;
+
+    // ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+#ifdef TEST
+    ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+#else
+#ifdef WELLESLEY
+    ImGui::Begin("Wellesley Lumes Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+#else
+    ImGui::Begin("Pixile Player Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+#endif
+    auto running = isProcessRunning(L"player.exe");
+    ImGui::Text("Current Player Status:");
+    ImGui::SameLine();
+    switch (running)
+    {
+    case PIXILE_STATUS_RUNNING:
+        ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "Running");
+        break;
+    case PIXILE_STATUS_NOTSCHEDULED:
+        ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "Out of Scheduled Time");
+        killPlayer();
+        break;
+    case PIXILE_STATUS_OFF:
+    default:
+        ImGui::TextColored(ImColor(IM_COL32(255, 0, 0, 255)), "Not Running");
+        //Sleep(500);
+        startPlayer(item);
+        break;
+    }
+
+
+
+    std::string sPlayerStartStr;
+    if (running == PIXILE_STATUS_RUNNING)
+    {
+        ImGui::SameLine();
+        sPlayerStartStr.append("Restart Lumes");
+
+        sPlayerStartStr.append("##StartPlayer");
+        if (ImGui::Button(sPlayerStartStr.c_str()))
+        {
+            killPlayer();
+        }
+
+    }
+#ifdef WELLESLEY
+    ImGui::Text("Current Scheduled Content: ");
+    ImGui::SameLine();
+    ImGui::Text(content_item_names[item]);
+#endif
+
+
+    ImGui::Text("Staring Time"); ImGui::SameLine();
+    createTimeCombo("Scheduled Start Time (Per Day)", start_hour, start_minute);
+
+    ImGui::Text("Ending Time"); ImGui::SameLine();
+    createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 128, 32, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(64, 128, 32, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 64, 16, 255));
+
+    bool bLoadSchedule = ImGui::Button("Load Schedule");
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
+    bool bSaveSchedule = ImGui::Button("Save Schedule");
+    ImGui::PopStyleColor(3);
+
+
+#ifdef  WELLESLEY
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 0, 128, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 0, 200, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(32, 0, 64, 255));
+
+    bool bAddItem = ImGui::Button("+ Add Schedule Item");
+    ImGui::PopStyleColor(3);
+
+    // ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 128, 128, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 128, 200, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(32, 128, 64, 255));
+    bool bValidate = false;// ImGui::Button("Validate Schedule");
+    ImGui::PopStyleColor(3);
+
+#endif //  WELLESLEY
+
+
+    if (bLoadSchedule)
+    {
+#ifdef USE_HARD_PATHS
+        loadSchedule("C:\\Content\\schedule.lsc");
+#else
+        std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
+        open_file = std::make_shared<pfd::open_file>("Choose file", "C:\\", filters);
+#endif
+
+    }
+
+    if (bSaveSchedule)
+    {
+#ifdef USE_HARD_PATHS
+        saveSchedule("C:\\Content\\schedule.lsc");
+#else
+        std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
+        save_file = std::make_shared<pfd::save_file>("Choose file", "C:\\", filters);
+#endif
+    }
+#ifdef WELLESLEY
+    if (bAddItem)
+    {
+        auto newItem = new SItemSchedule;
+        newItem->index = g_vecSchedule.size();
+        ImGui::SetDateToday(&newItem->startDate);
+        ImGui::SetDateToday(&newItem->endDate);
+        newItem->programID = 0;
+        g_vecSchedule.push_back(newItem);
+    }
+
+    if (bValidate)
+    {
+    }
+
+
+#endif // DEBUG
+
+    ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
+    for (auto& sched : g_vecSchedule)
+    {
+        createScheduleItem(sched);
+    }
+
+    ImGui::EndChildFrame();
+#endif // WELLESLEY
+    ImGui::End();
+    ImGui::PopStyleVar(1);
+}
+
 int main(int, char**)
 {
 
@@ -678,8 +856,13 @@ int main(int, char**)
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
+    int iWWidth = 640;
+    int iWHeight = 200;
+#ifdef WELLESLEY
+    iWHeight = 400;
+#endif
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(640, 400, "ENESS Lumes Scheduler", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(iWWidth, iWHeight, "ENESS Lumes Scheduler", NULL, NULL);
     if (window == NULL)
         return 1;
     glfwSetWindowPos(window, 1200, 200);
@@ -697,7 +880,7 @@ int main(int, char**)
     ImGui_ImplOpenGL3_Init(glsl_version);
 
 
-    bool bPixileRunning = false;
+
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
@@ -709,155 +892,9 @@ int main(int, char**)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        {
-            static int lastItem = -1;
-            static int item = 0;
-            item = GetCurrentScheduledItem();
-            if (item != lastItem)
-            {
-                SetCurrentProgram(item);
-            }
-            lastItem = item;
-#ifdef IMGUI_HAS_VIEWPORT
-            ImGuiViewport* viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(viewport->GetWorkPos());
-            ImGui::SetNextWindowSize(viewport->GetWorkSize());
-            ImGui::SetNextWindowViewport(viewport->ID);
-#else 
-            ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-            ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-#endif
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 
-            static float f = 0.0f;
-            static int counter = 0;
+        DrawMainGUI();
 
-            // ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-#ifdef TEST
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-#else
-            ImGui::Begin("Wellesley Lumes Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
-
-            auto running = isProcessRunning(L"player.exe");
-            ImGui::Text("Current Player Status:");
-            ImGui::SameLine();
-            switch (running)
-            {
-            case PIXILE_STATUS_RUNNING:
-                ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "Running");
-                break;
-            case PIXILE_STATUS_NOTSCHEDULED:
-                ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "Out of Scheduled Time");
-                killPlayer();
-                break;
-            case PIXILE_STATUS_OFF:
-            default:
-                ImGui::TextColored(ImColor(IM_COL32(255, 0, 0, 255)), "Not Running");
-                //Sleep(500);
-                startPlayer(item);
-                break;
-            }
-
-
-
-            std::string sPlayerStartStr;
-            if (running == PIXILE_STATUS_RUNNING)
-            {
-                ImGui::SameLine();
-                sPlayerStartStr.append("Restart Lumes");
-
-                sPlayerStartStr.append("##StartPlayer");
-                if (ImGui::Button(sPlayerStartStr.c_str()))
-                {
-                    killPlayer();
-                }
-
-            }
-            ImGui::Text("Current Scheduled Content: ");
-            ImGui::SameLine();
-
-            ImGui::Text(content_item_names[item]);
-
-            ImGui::Text("Staring Time"); ImGui::SameLine();
-            createTimeCombo("Scheduled Start Time (Per Day)", start_hour, start_minute);
-
-            ImGui::Text("Ending Time"); ImGui::SameLine();
-            createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
-
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 128, 32, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(64, 128, 32, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 64, 16, 255));
-
-            bool bLoadSchedule = ImGui::Button("Load Schedule");
-            ImGui::PopStyleColor(3);
-
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
-            bool bSaveSchedule = ImGui::Button("Save Schedule");
-            ImGui::PopStyleColor(3);
-
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 0, 128, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 0, 200, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(32, 0, 64, 255));
-            bool bAddItem = ImGui::Button("+ Add Schedule Item");
-            ImGui::PopStyleColor(3);
-
-            // ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 128, 128, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 128, 200, 255));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(32, 128, 64, 255));
-            bool bValidate = false;// ImGui::Button("Validate Schedule");
-            ImGui::PopStyleColor(3);
-
-            if (bLoadSchedule)
-            {
-#ifdef USE_HARD_PATHS
-                loadSchedule("C:\\Content\\schedule.lsc");
-#else
-                std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
-                open_file = std::make_shared<pfd::open_file>("Choose file", "C:\\", filters);
-#endif
-
-            }
-
-            if (bSaveSchedule)
-            {
-#ifdef USE_HARD_PATHS
-                saveSchedule("C:\\Content\\schedule.lsc");
-#else
-                std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
-                save_file = std::make_shared<pfd::save_file>("Choose file", "C:\\", filters);
-#endif
-            }
-
-            if (bAddItem)
-            {
-                auto newItem = new SItemSchedule;
-                newItem->index = g_vecSchedule.size();
-                ImGui::SetDateToday(&newItem->startDate);
-                ImGui::SetDateToday(&newItem->endDate);
-                newItem->programID = 0;
-                g_vecSchedule.push_back(newItem);
-            }
-
-            if (bValidate)
-            {
-            }
-            ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
-            for (auto& sched : g_vecSchedule)
-            {
-                createScheduleItem(sched);
-            }
-
-            ImGui::EndChildFrame();
-#endif
-            ImGui::End();
-            ImGui::PopStyleVar(1);
-
-        }
         // Rendering
         ImGui::Render();
         int display_w, display_h;
