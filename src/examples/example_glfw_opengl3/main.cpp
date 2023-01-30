@@ -14,9 +14,11 @@
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
-#include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <windows.h>
 #include <tlhelp32.h>
+
+#include <GLFW/glfw3.h> // Will drag system OpenGL headers
+
 #include "imguidatechooser.h"
 #include "portable-file-dialogs.h"
 
@@ -94,7 +96,7 @@ void killProcessByName(const wchar_t* filename)
     BOOL hRes = Process32First(hSnapShot, &pEntry);
     while (hRes)
     {
-        if (wcsicmp(pEntry.szExeFile, filename) == 0)
+        if (_wcsicmp(pEntry.szExeFile, filename) == 0)
         {
             HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, 0,
                 (DWORD)pEntry.th32ProcessID);
@@ -149,7 +151,6 @@ void SetCurrentProgram(uint32_t programID)
 bool startPlayer(uint32_t programID)
 {
 #ifdef WIN32
-    bool bResult = false;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     SetCurrentProgram(programID);
@@ -299,10 +300,11 @@ bool saveSchedule(const char* sFilename)
     return bRes;
 }
 
-bool setCurrent(int programIndex)
+bool setCurrent(int programIndex = 0)
 {
     // TODO: set Current Program.
     bool bRes = true;
+    programIndex++;
     return bRes;
 }
 
@@ -376,8 +378,9 @@ EPS isProcessRunning(const wchar_t* processName)
 {
     EPS status = PIXILE_STATUS_OFF;
 
-    time_t currentTime = time(0);
-    tm* localTime = localtime(&currentTime);
+    const time_t currentTime = time(0);
+    tm* localTime = nullptr;
+    localtime_s(localTime, &currentTime);
 
     if (isTimeBetween(localTime))
     {
@@ -388,7 +391,7 @@ EPS isProcessRunning(const wchar_t* processName)
 
         if (Process32First(snapshot, &entry))
             while (Process32Next(snapshot, &entry))
-                if (!wcsicmp(entry.szExeFile, processName))
+                if (!_wcsicmp(entry.szExeFile, processName))
                     status = PIXILE_STATUS_RUNNING;
 
         CloseHandle(snapshot);
@@ -403,7 +406,9 @@ int GetCurrentScheduledItem()
 {
 #
     time_t currentTime = time(0);
-    tm* localTime = localtime(&currentTime);
+    tm* localTime = nullptr;
+    localtime_s(localTime, &currentTime);
+
 
     for (auto& item : g_vecSchedule)
     {
@@ -430,10 +435,10 @@ void createTimeCombo(std::string sComboName, int& current_hour_idx, int& current
             {
 
                 const bool is_selected = (current_hour_idx == n);
-                auto old_str = std::to_string(n);
-                auto new_str = std::string(2 - min(2, old_str.length()), '0') + old_str;
+                auto old_str2 = std::to_string(n);
+                auto new_str2 = std::string(2 - min(2, old_str2.length()), '0') + old_str2;
 
-                if (ImGui::Selectable(new_str.c_str(), &is_selected))
+                if (ImGui::Selectable(new_str2.c_str(), &is_selected))
                 {
                     current_hour_idx = n;
                 }
@@ -458,10 +463,10 @@ void createTimeCombo(std::string sComboName, int& current_hour_idx, int& current
             {
 
                 const bool is_selected = (current_min_idx == n);
-                auto old_str = std::to_string(n);
-                auto new_str = std::string(2 - min(2, old_str.length()), '0') + old_str;
+                auto old_str3 = std::to_string(n);
+                auto new_str3 = std::string(2 - min(2, old_str3.length()), '0') + old_str3;
 
-                if (ImGui::Selectable(new_str.c_str(), &is_selected))
+                if (ImGui::Selectable(new_str3.c_str(), &is_selected))
                 {
                     current_min_idx = n;
                 }
@@ -483,7 +488,7 @@ void pushStyleColours18(float h, bool active = false) {
     //float v = 0.7;
     float v = 0;
     float grey = 0.2f;
-    float vOffset = 0.1f;
+
     //float s = 0.5;
     float s = 0.0f;
 
@@ -514,6 +519,7 @@ void pushStyleColours18(float h, bool active = false) {
 
 void createScheduleItem(SItemSchedule* item)
 {
+    item->index = item->index;
 #ifdef WELLESLEY
     bool bHighlight = false;
     time_t currentTime = time(0);
@@ -822,6 +828,39 @@ void DrawMainGUI()
 #endif // WELLESLEY
     ImGui::End();
     ImGui::PopStyleVar(1);
+    }
+
+int InitIMGUI(GLFWwindow* window, int iWWidth, int iWHeight, const char* glsl_version)
+{
+    window = glfwCreateWindow(iWWidth, iWHeight, "ENESS Lumes Scheduler", NULL, NULL);
+    if (window == NULL)
+        return 1;
+    glfwSetWindowPos(window, 1200, 200);
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1); // Enable vsync
+
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    StyleColorsPhotoshop();
+    // Setup Platform/Renderer back ends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
+    return 0;
+}
+
+void CleanupIMGUI(GLFWwindow* window)
+{
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
 }
 
 int main(int, char**)
@@ -861,25 +900,12 @@ int main(int, char**)
 #ifdef WELLESLEY
     iWHeight = 400;
 #endif
+    GLFWwindow* window = nullptr;
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(iWWidth, iWHeight, "ENESS Lumes Scheduler", NULL, NULL);
-    if (window == NULL)
+    auto res = InitIMGUI(window, iWWidth, iWHeight, glsl_version);
+    // Failed to init window.
+    if (res == 1)
         return 1;
-    glfwSetWindowPos(window, 1200, 200);
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable vsync
-
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-    StyleColorsPhotoshop();
-    // Setup Platform/Renderer back ends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
-
-
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -910,13 +936,8 @@ int main(int, char**)
 
     }
 
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    CleanupIMGUI(window);
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
 
     return 0;
 }
