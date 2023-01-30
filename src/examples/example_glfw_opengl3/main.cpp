@@ -395,8 +395,12 @@ EPS isProcessRunning(const wchar_t* processName)
                     status = PIXILE_STATUS_RUNNING;
 
         CloseHandle(snapshot);
+        if (localTime)
+            delete localTime;
     }
     else {
+        if (localTime)
+            delete localTime;
         return PIXILE_STATUS_NOTSCHEDULED;
     }
     return status;
@@ -413,9 +417,15 @@ int GetCurrentScheduledItem()
     for (auto& item : g_vecSchedule)
     {
         if (isDateBetween(localTime, &item->startDate, &item->endDate))
+        {
+            if (localTime)
+                delete localTime;
             return item->programID;
+        }
     }
 
+    if (localTime)
+        delete localTime;
     return 12;
 }
 
@@ -828,7 +838,7 @@ void DrawMainGUI()
 #endif // WELLESLEY
     ImGui::End();
     ImGui::PopStyleVar(1);
-}
+    }
 
 int InitIMGUI(GLFWwindow** window, int iWWidth, int iWHeight, const char* glsl_version)
 {
