@@ -379,7 +379,7 @@ EPS isProcessRunning(const wchar_t* processName)
     EPS status = PIXILE_STATUS_OFF;
 
     const time_t currentTime = time(0);
-    tm* localTime = nullptr;
+    tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
 
     if (isTimeBetween(localTime))
@@ -406,7 +406,7 @@ int GetCurrentScheduledItem()
 {
 #
     time_t currentTime = time(0);
-    tm* localTime = nullptr;
+    tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
 
 
@@ -828,15 +828,15 @@ void DrawMainGUI()
 #endif // WELLESLEY
     ImGui::End();
     ImGui::PopStyleVar(1);
-    }
+}
 
-int InitIMGUI(GLFWwindow* window, int iWWidth, int iWHeight, const char* glsl_version)
+int InitIMGUI(GLFWwindow** window, int iWWidth, int iWHeight, const char* glsl_version)
 {
-    window = glfwCreateWindow(iWWidth, iWHeight, "ENESS Lumes Scheduler", NULL, NULL);
-    if (window == NULL)
+    *window = glfwCreateWindow(iWWidth, iWHeight, "ENESS Lumes Scheduler", NULL, NULL);
+    if (*window == NULL)
         return 1;
-    glfwSetWindowPos(window, 1200, 200);
-    glfwMakeContextCurrent(window);
+    glfwSetWindowPos(*window, 1200, 200);
+    glfwMakeContextCurrent(*window);
     glfwSwapInterval(1); // Enable vsync
 
     // Setup Dear ImGui context
@@ -846,7 +846,7 @@ int InitIMGUI(GLFWwindow* window, int iWWidth, int iWHeight, const char* glsl_ve
 
     StyleColorsPhotoshop();
     // Setup Platform/Renderer back ends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(*window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     return 0;
@@ -902,7 +902,7 @@ int main(int, char**)
 #endif
     GLFWwindow* window = nullptr;
     // Create window with graphics context
-    auto res = InitIMGUI(window, iWWidth, iWHeight, glsl_version);
+    auto res = InitIMGUI(&window, iWWidth, iWHeight, glsl_version);
     // Failed to init window.
     if (res == 1)
         return 1;
