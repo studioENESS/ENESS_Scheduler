@@ -242,7 +242,7 @@ bool loadSchedule(const char* sFilename)
     for (auto& item : jsonfile["schedule"])
     {
         auto newItem = new SItemSchedule;
-        newItem->index = g_vecSchedule.size();
+        newItem->index = (int32_t)g_vecSchedule.size();
         ImGui::SetDateToday(&newItem->startDate);
         ImGui::SetDateToday(&newItem->endDate);
         newItem->index = item["index"];
@@ -533,7 +533,8 @@ void createScheduleItem(SItemSchedule* item)
 #ifdef WELLESLEY
     bool bHighlight = false;
     time_t currentTime = time(0);
-    tm* localTime = localtime(&currentTime);
+    tm* localTime = new tm();
+    localtime_s(localTime, &currentTime);
 
     bHighlight = isDateBetween(localTime, &item->startDate, &item->endDate);
 
@@ -582,7 +583,7 @@ void createScheduleItem(SItemSchedule* item)
                 if (ImGui::Selectable(content_item_names[pr], &is_selected))
                 {
                     //current_hour_idx = pr;
-                    item->programID = pr;
+                    item->programID = (uint8_t)pr;
                 }
                 // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
                 if (is_selected)
@@ -674,6 +675,23 @@ void StyleColorsPhotoshop()
 #pragma comment(linker, "/SUBSYSTEM:Windows /ENTRY:mainCRTStartup")
 #endif
 
+
+void AddScheduleItem(bool bAddItem, bool bValidate)
+{
+    if (bAddItem)
+    {
+        auto newItem = new SItemSchedule;
+        newItem->index = (uint32_t)g_vecSchedule.size();
+        ImGui::SetDateToday(&newItem->startDate);
+        ImGui::SetDateToday(&newItem->endDate);
+        newItem->programID = 0;
+        g_vecSchedule.push_back(newItem);
+    }
+
+    if (bValidate)
+    {
+    }
+}
 
 void DrawMainGUI()
 {
@@ -811,22 +829,9 @@ void DrawMainGUI()
 #endif
     }
 #ifdef WELLESLEY
-    if (bAddItem)
-    {
-        auto newItem = new SItemSchedule;
-        newItem->index = g_vecSchedule.size();
-        ImGui::SetDateToday(&newItem->startDate);
-        ImGui::SetDateToday(&newItem->endDate);
-        newItem->programID = 0;
-        g_vecSchedule.push_back(newItem);
-    }
+    AddScheduleItem(bAddItem, bValidate);
 
-    if (bValidate)
-    {
-    }
-
-
-#endif // DEBUG
+#endif // WELLESLEY
 
     ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
     for (auto& sched : g_vecSchedule)
@@ -838,13 +843,15 @@ void DrawMainGUI()
 #endif // WELLESLEY
     ImGui::End();
     ImGui::PopStyleVar(1);
-    }
+}
 
 int InitIMGUI(GLFWwindow** window, int iWWidth, int iWHeight, const char* glsl_version)
 {
     *window = glfwCreateWindow(iWWidth, iWHeight, "ENESS Lumes Scheduler", NULL, NULL);
+
     if (*window == NULL)
         return 1;
+
     glfwSetWindowPos(*window, 1200, 200);
     glfwMakeContextCurrent(*window);
     glfwSwapInterval(1); // Enable vsync
