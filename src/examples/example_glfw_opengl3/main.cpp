@@ -32,9 +32,13 @@
 #if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
+#pragma comment(linker, "/SUBSYSTEM:Windows /ENTRY:mainCRTStartup")
+
 #define USE_HARD_PATHS 1
 #define AUTO_RUNNER_ONLY
+
 //#define WELLESLEY
+#define CSL
 
 
 struct SItemSchedule
@@ -44,7 +48,7 @@ struct SItemSchedule
     tm startDate;
     tm endDate;
 };
-
+static bool bDays[7];
 enum EPS
 {
     PIXILE_STATUS_OFF,
@@ -227,7 +231,12 @@ bool loadSchedule(const char* sFilename)
     start_minute = jsonfile["time"]["start"]["minute"];
     end_hour = jsonfile["time"]["end"]["hour"];
     end_minute = jsonfile["time"]["end"]["minute"];
-
+#ifdef CSL
+    for (int i = 0; i < 7; i++)
+    {
+        bDays[i] = jsonfile["time"]["day"][i];
+    }
+#endif
 #ifdef WELLESLEY
 
 
@@ -274,7 +283,12 @@ bool saveSchedule(const char* sFilename)
     jsonfile["time"]["start"]["minute"] = start_minute;
     jsonfile["time"]["end"]["hour"] = end_hour;
     jsonfile["time"]["end"]["minute"] = end_minute;
-
+#ifdef CSL
+    for (int i = 0; i < 7; i++)
+    {
+        jsonfile["time"]["day"][i] = bDays[i];
+    }
+#endif
 #ifdef WELLESLEY
 
     for (const auto sched : g_vecSchedule)
@@ -290,7 +304,7 @@ bool saveSchedule(const char* sFilename)
         jsonfile["schedule"][sched->index]["EndDate"]["Day"] = sched->endDate.tm_mday;
         jsonfile["schedule"][sched->index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
         jsonfile["schedule"][sched->index]["ProgramID"] = sched->programID;
-    }
+}
 #endif
     outfile.open(sFilename, std::ios::out | std::ios::trunc);
 
@@ -341,6 +355,17 @@ void DoFileDialog_Save()
     }
 }
 
+bool IsValidDayOfWeek()
+{
+    const time_t currentTime = time(0);
+    tm* localTime = new tm();
+    localtime_s(localTime, &currentTime);
+    bool bValid = false;
+    bValid = bDays[localTime->tm_wday];
+    delete localTime;
+    return bValid;
+}
+
 bool isDateBetween(tm* time, tm* start, tm* end) {
     if (time->tm_year < start->tm_year || time->tm_year > end->tm_year) {
         return false;
@@ -354,6 +379,10 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
     return true;
 }
 bool isTimeBetween(tm* time) {
+#ifdef CSL
+    if (!IsValidDayOfWeek())
+        return false;
+#endif
     if (time->tm_hour < start_hour || time->tm_hour > end_hour) {
         return false;
     }
@@ -671,9 +700,6 @@ void StyleColorsPhotoshop()
     style->TabRounding = 0.0f;
     style->WindowRounding = 4.0f;
 }
-#ifndef DEBUG
-#pragma comment(linker, "/SUBSYSTEM:Windows /ENTRY:mainCRTStartup")
-#endif
 
 
 void AddScheduleItem(bool bAddItem, bool bValidate)
@@ -717,10 +743,7 @@ void DrawMainGUI()
     static float f = 0.0f;
     static int counter = 0;
 
-    // ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-#ifdef TEST
-    ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-#else
+
 #ifdef WELLESLEY
     ImGui::Begin("Wellesley Lumes Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
 #else
@@ -774,6 +797,17 @@ void DrawMainGUI()
     ImGui::Text("Ending Time"); ImGui::SameLine();
     createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
 
+#ifdef CSL
+    ImGui::Text("Active Days");
+    ImGui::Checkbox("Monday", &bDays[1]); ImGui::SameLine();
+    ImGui::Checkbox("Tuesday", &bDays[2]); ImGui::SameLine();
+    ImGui::Checkbox("Wednesday", &bDays[3]); ImGui::SameLine();
+    ImGui::Checkbox("Thursday", &bDays[4]);
+    ImGui::Checkbox("Friday", &bDays[5]); ImGui::SameLine();
+    ImGui::Checkbox("Saturday", &bDays[6]); ImGui::SameLine();
+    ImGui::Checkbox("Sunday", &bDays[0]);
+#endif
+
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 128, 32, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(64, 128, 32, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 64, 16, 255));
@@ -817,7 +851,7 @@ void DrawMainGUI()
         open_file = std::make_shared<pfd::open_file>("Choose file", "C:\\", filters);
 #endif
 
-    }
+        }
 
     if (bSaveSchedule)
     {
@@ -831,8 +865,6 @@ void DrawMainGUI()
 #ifdef WELLESLEY
     AddScheduleItem(bAddItem, bValidate);
 
-#endif // WELLESLEY
-
     ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
     for (auto& sched : g_vecSchedule)
     {
@@ -841,6 +873,43 @@ void DrawMainGUI()
 
     ImGui::EndChildFrame();
 #endif // WELLESLEY
+
+#ifdef CSL
+    static bool bShowingContent = true;
+    bool bShowContent = false;
+    bool bHideContent = false;
+    ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
+    ImGui::Text("Temporally Enable/Disable Content.");
+    if (bShowingContent)
+    {
+
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 128, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(64, 128, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 64, 16, 255));
+
+        bShowContent = ImGui::Button("Content On", ImVec2(200, 60));
+        ImGui::PopStyleColor(3);
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
+        bHideContent = ImGui::Button("Content Off", ImVec2(200, 60));
+        ImGui::PopStyleColor(3);
+    }
+    if (bShowContent && bShowingContent)
+    {
+        bShowingContent = false;
+    }
+    if (bHideContent && !bShowingContent)
+    {
+        bShowingContent = true;
+    }
+    SetCurrentProgram(bShowingContent);
+
+    ImGui::EndChildFrame();
+#endif // CSL
     ImGui::End();
     ImGui::PopStyleVar(1);
 }
@@ -912,8 +981,8 @@ int main(int, char**)
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
-    int iWWidth = 640;
-    int iWHeight = 200;
+    int iWWidth = 400;
+    int iWHeight = 260;
 #ifdef WELLESLEY
     iWHeight = 400;
 #endif
