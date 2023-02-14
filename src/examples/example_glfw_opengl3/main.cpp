@@ -236,6 +236,7 @@ std::wstring utf8_decode(const std::string& str)
     return wstrTo;
 }
 #else
+#include <codecvt>
 std::wstring utf8_decode(const std::string& str)
 {
     try
@@ -302,7 +303,7 @@ bool loadSchedule(const char* sFilename)
     {
         if (jsonfile.contains(std::string("time\\day")))
             bDays[i] = jsonfile["time"]["day"][i];
-    }
+}
 #endif
 #ifdef WELLESLEY
 
@@ -359,7 +360,7 @@ bool saveSchedule(const char* sFilename)
     for (int i = 0; i < 7; i++)
     {
         jsonfile["time"]["day"][i] = bDays[i];
-    }
+}
 #endif
 #ifdef WELLESLEY
 
