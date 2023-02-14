@@ -14,9 +14,10 @@
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
+#ifdef WIN32
 #include <windows.h>
 #include <tlhelp32.h>
-
+#endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 
 #include "imguidatechooser.h"
@@ -37,8 +38,8 @@
 #define USE_HARD_PATHS 1
 #define AUTO_RUNNER_ONLY
 
-//#define WELLESLEY
-#define CSL
+#define WELLESLEY
+//#define CSL
 
 
 struct SItemSchedule
@@ -77,12 +78,14 @@ const char* content_item_names[] = {
 
 std::wstring content_filename = L"D:\\Eness_Projects\\2038-Wellesley-Library\\Pixile_Sketch\\Packed\\2038-Wellesley_auto.pxl";
 std::wstring pixile_location = L"C:\\Eness_Projects\\pixile\\Bin\\Studio\\Release\\";
+std::wstring alt_pixile_location = L"C:\\Eness_Projects\\pixile\\Bin\\Studio\\Release\\";
 
 static int start_hour = 6;
 static int start_minute = 55;
 static int end_hour = 20;
 static int end_minute = 55;
-
+static bool g_bUseAlternatePlayer = false;
+static bool g_bCanUseAlternatePlayer = false;
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -165,6 +168,12 @@ bool startPlayer(uint32_t programID)
     ZeroMemory(&pi, sizeof(pi));
 
     std::wstring cmdLine = pixile_location;
+    if (g_bUseAlternatePlayer)
+    {
+        cmdLine = alt_pixile_location;
+
+    }
+
     cmdLine.append(L"player.exe -w 1024 -h 768 \"");
     cmdLine.append(content_filename);
     cmdLine.append(L"\"");
@@ -179,7 +188,7 @@ bool startPlayer(uint32_t programID)
         FALSE,          // Set handle inheritance to FALSE
         0,              // No creation flags
         NULL,           // Use parent's environment block
-        pixile_location.c_str(),           // Use parent's starting directory 
+        g_bUseAlternatePlayer ? alt_pixile_location.c_str() : pixile_location.c_str(),           // Use parent's starting directory 
         &si,            // Pointer to STARTUPINFO structure
         &pi)           // Pointer to PROCESS_INFORMATION structure
         )
@@ -226,6 +235,15 @@ bool loadSchedule(const char* sFilename)
     jsonfile = nlohmann::json::parse(buffer);
     content_filename = utf8_decode(jsonfile["content_filename"]);
     pixile_location = utf8_decode(jsonfile["pixile_location"]);
+    if (jsonfile.contains(std::string("alternate_pixile_location")))
+    {
+        g_bCanUseAlternatePlayer = true;
+        alt_pixile_location = utf8_decode(jsonfile["alternate_pixile_location"]);
+        if (jsonfile.contains(std::string("use_alternate_player")))
+        {
+            g_bUseAlternatePlayer = jsonfile["use_alternate_player"];
+        }
+    }
 
     start_hour = jsonfile["time"]["start"]["hour"];
     start_minute = jsonfile["time"]["start"]["minute"];
@@ -234,8 +252,9 @@ bool loadSchedule(const char* sFilename)
 #ifdef CSL
     for (int i = 0; i < 7; i++)
     {
-        bDays[i] = jsonfile["time"]["day"][i];
-    }
+        if (jsonfile.contains(std::string("time\\day")))
+            bDays[i] = jsonfile["time"]["day"][i];
+}
 #endif
 #ifdef WELLESLEY
 
@@ -279,6 +298,11 @@ bool saveSchedule(const char* sFilename)
     jsonfile["cmdline"] = "player.exe -w 1920 -h 1080 -s c:\\content\\weleslley\\script.pxl";
     jsonfile["content_filename"] = utf8_encode(content_filename);
     jsonfile["pixile_location"] = utf8_encode(pixile_location);
+    if (g_bCanUseAlternatePlayer)
+    {
+        jsonfile["alternate_pixile_location"] = utf8_encode(alt_pixile_location);
+        jsonfile["use_alternate_player"] = g_bUseAlternatePlayer;
+    }
     jsonfile["time"]["start"]["hour"] = start_hour;
     jsonfile["time"]["start"]["minute"] = start_minute;
     jsonfile["time"]["end"]["hour"] = end_hour;
@@ -287,7 +311,7 @@ bool saveSchedule(const char* sFilename)
     for (int i = 0; i < 7; i++)
     {
         jsonfile["time"]["day"][i] = bDays[i];
-    }
+}
 #endif
 #ifdef WELLESLEY
 
@@ -304,7 +328,7 @@ bool saveSchedule(const char* sFilename)
         jsonfile["schedule"][sched->index]["EndDate"]["Day"] = sched->endDate.tm_mday;
         jsonfile["schedule"][sched->index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
         jsonfile["schedule"][sched->index]["ProgramID"] = sched->programID;
-}
+    }
 #endif
     outfile.open(sFilename, std::ios::out | std::ios::trunc);
 
@@ -378,6 +402,7 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
 
     return true;
 }
+
 bool isTimeBetween(tm* time) {
 #ifdef CSL
     if (!IsValidDayOfWeek())
@@ -566,7 +591,7 @@ void createScheduleItem(SItemSchedule* item)
     localtime_s(localTime, &currentTime);
 
     bHighlight = isDateBetween(localTime, &item->startDate, &item->endDate);
-
+    delete localTime;
     ImGui::PushID(item->index);
     std::string node_name;
     node_name.append(bHighlight ? "* " : "").append(content_item_names[item->programID]);
@@ -784,6 +809,15 @@ void DrawMainGUI()
         }
 
     }
+    if (g_bCanUseAlternatePlayer)
+    {
+        //ImGui::SameLine();
+        if (ImGui::Checkbox("Disable People Tracking", &g_bUseAlternatePlayer))
+        {
+            killPlayer();
+
+        }
+    }
 #ifdef WELLESLEY
     ImGui::Text("Current Scheduled Content: ");
     ImGui::SameLine();
@@ -851,7 +885,7 @@ void DrawMainGUI()
         open_file = std::make_shared<pfd::open_file>("Choose file", "C:\\", filters);
 #endif
 
-        }
+    }
 
     if (bSaveSchedule)
     {

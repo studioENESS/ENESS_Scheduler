@@ -11,8 +11,8 @@
 #   pacman -S --noconfirm --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-glfw
 #
 
-#CXX = g++
-#CXX = clang++
+C = garm-linux-gnueabihf-gcc-8
+CXX = arm-linux-gnueabihf-g++-8
 
 EXE = example_glfw_opengl3
 IMGUI_DIR = ../..
