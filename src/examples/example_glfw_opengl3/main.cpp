@@ -19,6 +19,7 @@
 #include <tlhelp32.h>
 #else
 #define localtime_s localtime_r
+#define min std::min
 #endif
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
@@ -121,7 +122,7 @@ void killProcessByName(const wchar_t* filename)
     CloseHandle(hSnapShot);
 #else
 #endif
-    }
+}
 
 bool killPlayer()
 {
@@ -949,7 +950,7 @@ void DrawMainGUI()
 #endif // CSL
     ImGui::End();
     ImGui::PopStyleVar(1);
-    }
+}
 
 int InitIMGUI(GLFWwindow** window, int iWWidth, int iWHeight, const char* glsl_version)
 {
