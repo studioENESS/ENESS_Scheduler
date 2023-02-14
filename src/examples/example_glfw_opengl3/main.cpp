@@ -244,11 +244,11 @@ std::wstring utf8_decode(const std::string& str)
         typedef std::codecvt_utf8<wchar_t> convert_typeX;
         std::wstring_convert<convert_typeX, wchar_t> converterX;
 
-        return converterX.to_bytes(sInput);
+        return converterX.to_bytes(str);
     }
     catch (std::exception& e)
     {
-        return std::string(sInput.begin(), sInput.end()).assign(sInput.begin(), sInput.end());
+        return std::string(str.begin(), str.end()).assign(str.begin(), str.end());
     }
 }
 
@@ -260,12 +260,12 @@ std::wstring utf8_encode(const std::string& str)
         typedef std::codecvt_utf8<wchar_t> convert_typeX;
         std::wstring_convert<convert_typeX, wchar_t> converterX;
 
-        return converterX.from_bytes(sInput);
+        return converterX.from_bytes(str);
     }
 
     catch (std::exception& e)
     {
-        return std::wstring(sInput.begin(), sInput.end()).assign(sInput.begin(), sInput.end());
+        return std::wstring(str.begin(), str.end()).assign(str.begin(), str.end());
     }
 
 }
@@ -303,7 +303,7 @@ bool loadSchedule(const char* sFilename)
     {
         if (jsonfile.contains(std::string("time\\day")))
             bDays[i] = jsonfile["time"]["day"][i];
-}
+    }
 #endif
 #ifdef WELLESLEY
 
@@ -360,7 +360,7 @@ bool saveSchedule(const char* sFilename)
     for (int i = 0; i < 7; i++)
     {
         jsonfile["time"]["day"][i] = bDays[i];
-}
+    }
 #endif
 #ifdef WELLESLEY
 
