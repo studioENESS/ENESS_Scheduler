@@ -537,7 +537,7 @@ void createTimeCombo(std::string sComboName, int& current_hour_idx, int& current
     // Hour
     {
         auto old_str = std::to_string(current_min_idx);
-        auto new_str = std::string(2 - min(2, old_str.length()), '0') + old_str;
+        auto new_str = std::string(2 - std::min(2, old_str.length()), '0') + old_str;
         const char* combo_preview_value = new_str.c_str();  // Pass in the preview value visible before opening the combo (it could be anything)
         ImGui::SetNextItemWidth(80);
         if (ImGui::BeginCombo("###MinuteTime", combo_preview_value))
@@ -548,7 +548,7 @@ void createTimeCombo(std::string sComboName, int& current_hour_idx, int& current
 
                 const bool is_selected = (current_min_idx == n);
                 auto old_str3 = std::to_string(n);
-                auto new_str3 = std::string(2 - min(2, old_str3.length()), '0') + old_str3;
+                auto new_str3 = std::string(2 - std::min(2, old_str3.length()), '0') + old_str3;
 
                 if (ImGui::Selectable(new_str3.c_str(), &is_selected))
                 {
