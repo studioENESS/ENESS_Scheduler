@@ -239,34 +239,18 @@ std::wstring utf8_decode(const std::string& str)
 #include <codecvt>
 std::wstring utf8_decode(const std::string& str)
 {
-    try
-    {
-        typedef std::codecvt_utf8<wchar_t> convert_typeX;
-        std::wstring_convert<convert_typeX, wchar_t> converterX;
+    typedef std::codecvt_utf8<wchar_t> convert_typeX;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
 
-        return converterX.to_bytes(str);
-    }
-    catch (std::exception& e)
-    {
-        return std::string(str.begin(), str.end()).assign(str.begin(), str.end());
-    }
+    return converterX.to_bytes(str);
 }
 
 std::wstring utf8_encode(const std::string& str)
 {
+    typedef std::codecvt_utf8<wchar_t> convert_typeX;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
 
-    try
-    {
-        typedef std::codecvt_utf8<wchar_t> convert_typeX;
-        std::wstring_convert<convert_typeX, wchar_t> converterX;
-
-        return converterX.from_bytes(str);
-    }
-
-    catch (std::exception& e)
-    {
-        return std::wstring(str.begin(), str.end()).assign(str.begin(), str.end());
-    }
+    return converterX.from_bytes(str);
 
 }
 
@@ -472,10 +456,10 @@ bool isTimeBetween(tm* time) {
             return false;
         }
 
-    }
+        }
 
     return true;
-}
+    }
 
 EPS isProcessRunning(const wchar_t* processName)
 {
