@@ -14,12 +14,12 @@
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 #include <windows.h>
 #include <tlhelp32.h>
 #else
 #define localtime_s localtime_r
-#define min std::min
+//#define min std::min
 #endif
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
@@ -100,7 +100,7 @@ std::shared_ptr<pfd::save_file> save_file;
 
 void killProcessByName(const wchar_t* filename)
 {
-#ifdef WIN32
+#ifdef _WIN32
     HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPALL, NULL);
     PROCESSENTRY32 pEntry;
     pEntry.dwSize = sizeof(pEntry);
@@ -161,7 +161,7 @@ void SetCurrentProgram(uint32_t programID)
 
 bool startPlayer(uint32_t programID)
 {
-#ifdef WIN32
+#ifdef _WIN32
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     SetCurrentProgram(programID);
@@ -258,7 +258,7 @@ bool loadSchedule(const char* sFilename)
     {
         if (jsonfile.contains(std::string("time\\day")))
             bDays[i] = jsonfile["time"]["day"][i];
-}
+    }
 #endif
 #ifdef WELLESLEY
 
@@ -315,7 +315,7 @@ bool saveSchedule(const char* sFilename)
     for (int i = 0; i < 7; i++)
     {
         jsonfile["time"]["day"][i] = bDays[i];
-}
+    }
 #endif
 #ifdef WELLESLEY
 
@@ -436,6 +436,7 @@ EPS isProcessRunning(const wchar_t* processName)
 {
     EPS status = PIXILE_STATUS_OFF;
 
+#ifdef _WIN32
     const time_t currentTime = time(0);
     tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
@@ -461,6 +462,7 @@ EPS isProcessRunning(const wchar_t* processName)
             delete localTime;
         return PIXILE_STATUS_NOTSCHEDULED;
     }
+#endif
     return status;
 }
 
