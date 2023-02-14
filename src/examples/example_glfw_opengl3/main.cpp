@@ -238,12 +238,35 @@ std::wstring utf8_decode(const std::string& str)
 #else
 std::wstring utf8_decode(const std::string& str)
 {
-    return "";
+    try
+    {
+        typedef std::codecvt_utf8<wchar_t> convert_typeX;
+        std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+        return converterX.to_bytes(sInput);
+    }
+    catch (std::exception& e)
+    {
+        return std::string(sInput.begin(), sInput.end()).assign(sInput.begin(), sInput.end());
+    }
 }
 
 std::wstring utf8_encode(const std::string& str)
 {
-    return "";
+
+    try
+    {
+        typedef std::codecvt_utf8<wchar_t> convert_typeX;
+        std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+        return converterX.from_bytes(sInput);
+    }
+
+    catch (std::exception& e)
+    {
+        return std::wstring(sInput.begin(), sInput.end()).assign(sInput.begin(), sInput.end());
+    }
+
 }
 
 #endif
