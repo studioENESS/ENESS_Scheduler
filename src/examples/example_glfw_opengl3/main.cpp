@@ -237,7 +237,7 @@ std::wstring utf8_decode(const std::string& str)
 }
 #else
 #include <codecvt>
-std::wstring utf8_decode(const std::string& str)
+std::wstring utf8_decode(std::string& str)
 {
     typedef std::codecvt_utf8<wchar_t> convert_typeX;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
@@ -245,7 +245,7 @@ std::wstring utf8_decode(const std::string& str)
     return converterX.to_bytes(str);
 }
 
-std::wstring utf8_encode(const std::string& str)
+std::wstring utf8_encode(std::string& str)
 {
     typedef std::codecvt_utf8<wchar_t> convert_typeX;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
@@ -456,10 +456,10 @@ bool isTimeBetween(tm* time) {
             return false;
         }
 
-        }
+    }
 
     return true;
-    }
+}
 
 EPS isProcessRunning(const wchar_t* processName)
 {
