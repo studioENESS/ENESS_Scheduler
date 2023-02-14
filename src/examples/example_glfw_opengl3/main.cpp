@@ -18,7 +18,7 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #else
-#define localtime_s localtime_r
+#define localtime_s(x,y) localtime_r(y,x)
 //#define min std::min
 #endif
 
