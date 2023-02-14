@@ -237,7 +237,7 @@ std::wstring utf8_decode(const std::string& str)
 }
 #else
 #include <codecvt>
-std::wstring utf8_decode(std::string& str)
+std::string utf8_decode(std::wstring& str)
 {
     typedef std::codecvt_utf8<wchar_t> convert_typeX;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
