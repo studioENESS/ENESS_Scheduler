@@ -20,7 +20,13 @@
 #else
 #define localtime_s(x,y) localtime_r(y,x)
 //#define min std::min
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
+#define INTERVAL 2
 #endif
 #ifndef mymax
 #define mymax(a,b)            (((a) > (b)) ? (a) : (b))
@@ -123,14 +129,14 @@ void killProcessByName(const wchar_t* filename)
                 TerminateProcess(hProcess, 9);
                 CloseHandle(hProcess);
             }
-        }
+            }
         hRes = Process32Next(hSnapShot, &pEntry);
-    }
+        }
     CloseHandle(hSnapShot);
 #else
 
 #endif
-}
+    }
 
 bool killPlayer()
 {
@@ -212,6 +218,8 @@ bool startPlayer(uint32_t programID)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 #else
+    int y, status;
+    pid_t pid;
     pid = fork();
 
     if (pid < 0) {
@@ -244,9 +252,9 @@ bool startPlayer(uint32_t programID)
             system("ps -f");
             printf("Still waiting!\n");
             sleep(INTERVAL);
-        }
-        printf("Exit Status %d\n", WEXITSTATUS(status));
     }
+        printf("Exit Status %d\n", WEXITSTATUS(status));
+}
 #endif
     return true;
 }
@@ -356,7 +364,7 @@ bool loadSchedule(const char* sFilename)
     }
 #endif // WELLESLEY
     return bRes;
-}
+    }
 
 bool saveSchedule(const char* sFilename)
 {
@@ -406,7 +414,7 @@ bool saveSchedule(const char* sFilename)
     outfile.close();
 
     return bRes;
-}
+    }
 
 bool setCurrent(int programIndex = 0)
 {
@@ -443,10 +451,10 @@ void DoFileDialog_Save()
         {
 
             saveSchedule(result.c_str());
-    }
+        }
         //std::cout << "Opened file " << result[0] << "\n";
         save_file = nullptr;
-}
+    }
 }
 
 bool IsValidDayOfWeek()
@@ -471,7 +479,7 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
     }
 
     return true;
-}
+    }
 
 bool isTimeBetween(tm* time) {
 #ifdef CSL
@@ -814,7 +822,7 @@ void AddScheduleItem(bool bAddItem, bool bValidate)
     if (bValidate)
     {
     }
-    }
+}
 
 void DrawMainGUI()
 {
@@ -878,9 +886,9 @@ void DrawMainGUI()
         if (ImGui::Button(sPlayerStartStr.c_str()))
         {
             killPlayer();
-}
+        }
 
-}
+    }
     if (g_bCanUseAlternatePlayer)
     {
         //ImGui::SameLine();
@@ -1018,7 +1026,7 @@ void DrawMainGUI()
 #endif // CSL
     ImGui::End();
     ImGui::PopStyleVar(1);
-}
+    }
 
 int InitIMGUI(GLFWwindow** window, int iWWidth, int iWHeight, const char* glsl_version)
 {
