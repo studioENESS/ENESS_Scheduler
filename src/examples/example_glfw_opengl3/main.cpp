@@ -144,8 +144,8 @@ void SetCurrentProgram(uint32_t programID)
     std::fstream fs;
     const std::filesystem::path sptPath = content_filename;
 
-    std::wstring cfgFile = (sptPath.parent_path().c_str());
-    cfgFile.append(L"\\config.json");
+    std::string cfgFile = (sptPath.parent_path().c_str());
+    cfgFile.append("\\config.json");
 
     std::ifstream file;
     file.open(cfgFile);
@@ -363,6 +363,7 @@ bool saveSchedule(const char* sFilename)
         jsonfile["schedule"][sched->index]["ProgramID"] = sched->programID;
     }
 #endif
+    std::string fileName = sFilename;
     outfile.open(sFilename, std::ios::out | std::ios::trunc);
 
     outfile << jsonfile.dump(4);
@@ -1021,7 +1022,7 @@ void CleanupIMGUI(GLFWwindow* window)
 int main(int, char**)
 {
 
-    loadSchedule("C:\\Content\\Schedule.lsc");
+    //loadSchedule("C:\\Content\\Schedule.lsc");
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
