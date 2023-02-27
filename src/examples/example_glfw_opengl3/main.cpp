@@ -128,6 +128,7 @@ void killProcessByName(const wchar_t* filename)
     }
     CloseHandle(hSnapShot);
 #else
+
 #endif
 }
 
@@ -211,6 +212,41 @@ bool startPlayer(uint32_t programID)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 #else
+    pid = fork();
+
+    if (pid < 0) {
+
+        /* This is an error */
+        perror("fork()");
+        return 1;
+
+    }
+    else if (pid == 0) {
+
+        /* This is the CHILD */
+
+        execlp("sleep", "sleep", "2", (char*)0);
+
+        perror("execlp()");
+
+        /* An exec does NOT return. */
+        /* The next lines won't execute unless there's an error with exec. */
+
+        printf("Child %u, parent %u\n", getpid(), getppid());
+        exit(0);
+
+    }
+    else {
+        /* This is the PARENT */
+        printf("Parent %u says child PID is %u\n", getpid(), pid);
+
+        while ((pid = waitpid(pid, &status, WNOHANG)) == 0) {
+            system("ps -f");
+            printf("Still waiting!\n");
+            sleep(INTERVAL);
+        }
+        printf("Exit Status %d\n", WEXITSTATUS(status));
+    }
 #endif
     return true;
 }
@@ -407,10 +443,10 @@ void DoFileDialog_Save()
         {
 
             saveSchedule(result.c_str());
-        }
+    }
         //std::cout << "Opened file " << result[0] << "\n";
         save_file = nullptr;
-    }
+}
 }
 
 bool IsValidDayOfWeek()
@@ -778,7 +814,7 @@ void AddScheduleItem(bool bAddItem, bool bValidate)
     if (bValidate)
     {
     }
-}
+    }
 
 void DrawMainGUI()
 {
@@ -842,9 +878,9 @@ void DrawMainGUI()
         if (ImGui::Button(sPlayerStartStr.c_str()))
         {
             killPlayer();
-        }
+}
 
-    }
+}
     if (g_bCanUseAlternatePlayer)
     {
         //ImGui::SameLine();
