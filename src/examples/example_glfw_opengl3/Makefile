@@ -24,6 +24,7 @@ UNAME_S := $(shell uname -s)
 LINUX_GL_LIBS = -lGL
 
 CXXFLAGS = -std=c++20 -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
+
 CXXFLAGS += -g -Wall -Wformat
 LIBS =
 
@@ -32,8 +33,8 @@ LIBS =
 ##---------------------------------------------------------------------
 
 ## This assumes a GL ES library available in the system, e.g. libGLESv2.so
-# CXXFLAGS += -DIMGUI_IMPL_OPENGL_ES2
-# LINUX_GL_LIBS = -lGLESv2
+ CXXFLAGS += -DIMGUI_IMPL_OPENGL_ES2
+ LINUX_GL_LIBS = -lGLESv2
 
 ##---------------------------------------------------------------------
 ## BUILD FLAGS PER PLATFORM
