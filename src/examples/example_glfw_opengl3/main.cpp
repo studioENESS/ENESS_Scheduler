@@ -129,14 +129,14 @@ void killProcessByName(const wchar_t* filename)
                 TerminateProcess(hProcess, 9);
                 CloseHandle(hProcess);
             }
-            }
-        hRes = Process32Next(hSnapShot, &pEntry);
         }
+        hRes = Process32Next(hSnapShot, &pEntry);
+    }
     CloseHandle(hSnapShot);
 #else
 
 #endif
-    }
+}
 
 bool killPlayer()
 {
@@ -233,7 +233,7 @@ bool startPlayer(uint32_t programID)
 
         /* This is the CHILD */
 
-        execlp("sleep", "sleep", "2", (char*)0);
+        execlp("/home/pi/pixile/player", "player", "-w 800 -h 600 -s \"/home/pi/Desktop/script.pxz", (char*)0);
 
         perror("execlp()");
 
@@ -252,9 +252,9 @@ bool startPlayer(uint32_t programID)
             system("ps -f");
             printf("Still waiting!\n");
             sleep(INTERVAL);
-    }
+        }
         printf("Exit Status %d\n", WEXITSTATUS(status));
-}
+    }
 #endif
     return true;
 }
@@ -364,7 +364,7 @@ bool loadSchedule(const char* sFilename)
     }
 #endif // WELLESLEY
     return bRes;
-    }
+}
 
 bool saveSchedule(const char* sFilename)
 {
@@ -414,7 +414,7 @@ bool saveSchedule(const char* sFilename)
     outfile.close();
 
     return bRes;
-    }
+}
 
 bool setCurrent(int programIndex = 0)
 {
@@ -479,7 +479,7 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
     }
 
     return true;
-    }
+}
 
 bool isTimeBetween(tm* time) {
 #ifdef CSL
@@ -1026,7 +1026,7 @@ void DrawMainGUI()
 #endif // CSL
     ImGui::End();
     ImGui::PopStyleVar(1);
-    }
+}
 
 int InitIMGUI(GLFWwindow** window, int iWWidth, int iWHeight, const char* glsl_version)
 {
