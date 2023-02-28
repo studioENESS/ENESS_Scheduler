@@ -57,7 +57,7 @@
 
 #define WELLESLEY
 //#define CSL
-
+pid_t last_pid =0;
 
 struct SItemSchedule
 {
@@ -141,8 +141,17 @@ void killProcessByName(const wchar_t* filename)
 bool killPlayer()
 {
     bool bResult = false;
+    #ifdef _WIN32
     killProcessByName(L"Player.exe");
     killProcessByName(L"Pixile.exe");
+    #else
+    if (last_pid != 0)
+    {
+
+    kill(last_pid,1);
+    last_pid = 0;
+    }
+    #endif
     return bResult;
 }
 
@@ -198,7 +207,7 @@ bool startPlayer(uint32_t programID)
     const std::wstring wcmd = cmdLine;
     LPWSTR cmd = cmdLine.data();
 
-    // Start the child process. 
+    // Start the child process.
     if (!CreateProcess(NULL,   // No module name (use command line)
         cmd,        // Command line
         NULL,           // Process handle not inheritable
@@ -206,7 +215,7 @@ bool startPlayer(uint32_t programID)
         FALSE,          // Set handle inheritance to FALSE
         0,              // No creation flags
         NULL,           // Use parent's environment block
-        g_bUseAlternatePlayer ? alt_pixile_location.c_str() : pixile_location.c_str(),           // Use parent's starting directory 
+        g_bUseAlternatePlayer ? alt_pixile_location.c_str() : pixile_location.c_str(),           // Use parent's starting directory
         &si,            // Pointer to STARTUPINFO structure
         &pi)           // Pointer to PROCESS_INFORMATION structure
         )
@@ -220,8 +229,11 @@ bool startPlayer(uint32_t programID)
 #else
     int y, status;
     pid_t pid;
-    pid = fork();
+if (last_pid == 0)
+{
 
+    pid = fork();
+   // sleep(6);
     if (pid < 0) {
 
         /* This is an error */
@@ -233,7 +245,7 @@ bool startPlayer(uint32_t programID)
 
         /* This is the CHILD */
 
-        execlp("/home/pi/pixile/player", "player", "-w 800 -h 600 -s \"/home/pi/Desktop/script.pxz", (char*)0);
+        execlp("/home/pi/pixile/player", "player", "-w 800",  "-h 600", "-s /home/pi/Desktop/script.pxz", (char*)0);
 
         perror("execlp()");
 
@@ -248,12 +260,11 @@ bool startPlayer(uint32_t programID)
         /* This is the PARENT */
         printf("Parent %u says child PID is %u\n", getpid(), pid);
 
-        while ((pid = waitpid(pid, &status, WNOHANG)) == 0) {
-            system("ps -f");
-            printf("Still waiting!\n");
-            sleep(INTERVAL);
-        }
-        printf("Exit Status %d\n", WEXITSTATUS(status));
+        last_pid = pid;
+    }
+    }
+    else
+    {
     }
 #endif
     return true;
@@ -510,13 +521,15 @@ EPS isProcessRunning(const wchar_t* processName)
 {
     EPS status = PIXILE_STATUS_OFF;
 
-#ifdef _WIN32
+
     const time_t currentTime = time(0);
     tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
 
     if (isTimeBetween(localTime))
     {
+
+     #ifdef _WIN32
         PROCESSENTRY32 entry;
         entry.dwSize = sizeof(PROCESSENTRY32);
 
@@ -528,6 +541,22 @@ EPS isProcessRunning(const wchar_t* processName)
                     status = PIXILE_STATUS_RUNNING;
 
         CloseHandle(snapshot);
+     #else
+
+    if (last_pid != 0)
+    {
+        int pud_status;
+        //if ((last_pid = waitpid(last_pid,&pud_status,WNOHANG)) == 0) {
+            status = PIXILE_STATUS_RUNNING;
+        //}
+    }
+        else
+        {
+            status = PIXILE_STATUS_OFF;
+        }
+
+    #endif
+
         if (localTime)
             delete localTime;
     }
@@ -536,8 +565,9 @@ EPS isProcessRunning(const wchar_t* processName)
             delete localTime;
         return PIXILE_STATUS_NOTSCHEDULED;
     }
-#endif
+
     return status;
+
 }
 
 int GetCurrentScheduledItem()
@@ -839,7 +869,7 @@ void DrawMainGUI()
     ImGui::SetNextWindowPos(viewport->GetWorkPos());
     ImGui::SetNextWindowSize(viewport->GetWorkSize());
     ImGui::SetNextWindowViewport(viewport->ID);
-#else 
+#else
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 #endif
