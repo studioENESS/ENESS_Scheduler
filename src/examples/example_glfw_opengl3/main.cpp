@@ -233,7 +233,7 @@ if (last_pid == 0)
 {
 
     pid = fork();
-   // sleep(6);
+    sleep(1);
     if (pid < 0) {
 
         /* This is an error */
@@ -545,10 +545,17 @@ EPS isProcessRunning(const wchar_t* processName)
 
     if (last_pid != 0)
     {
+    pid_t pid;
         int pud_status;
-        //if ((last_pid = waitpid(last_pid,&pud_status,WNOHANG)) == 0) {
+        pid = waitpid(last_pid,&pud_status,WNOHANG);
+        if (status == 0) {
             status = PIXILE_STATUS_RUNNING;
-        //}
+        }
+        if (pid == -1)
+        {
+            status - PIXILE_STATUS_OFF;
+            last_pid =0;
+        }
     }
         else
         {
