@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
+pid_t last_pid = 0;
 #define INTERVAL 2
 #endif
 #ifndef mymax
@@ -55,9 +55,9 @@
 #define USE_HARD_PATHS 1
 #define AUTO_RUNNER_ONLY
 
-#define WELLESLEY
-//#define CSL
-pid_t last_pid =0;
+//#define WELLESLEY
+#define CSL
+
 
 struct SItemSchedule
 {
@@ -141,27 +141,27 @@ void killProcessByName(const wchar_t* filename)
 bool killPlayer()
 {
     bool bResult = false;
-    #ifdef _WIN32
+#ifdef _WIN32
     killProcessByName(L"Player.exe");
     killProcessByName(L"Pixile.exe");
-    #else
+#else
     if (last_pid != 0)
     {
 
-    kill(last_pid,1);
-    last_pid = 0;
+        kill(last_pid, 1);
+        last_pid = 0;
     }
-    #endif
+#endif
     return bResult;
 }
 
-void SetCurrentProgram(uint32_t programID)
+void SetCurrentProgram(uint32_t programID, uint32_t paused = 0)
 {
     std::fstream fs;
     const std::filesystem::path sptPath = content_filename;
 
-    std::string cfgFile = (sptPath.parent_path().c_str());
-    cfgFile.append("\\config.json");
+    std::wstring cfgFile = (sptPath.parent_path().c_str());
+    cfgFile.append(L"\\config.json");
 
     std::ifstream file;
     file.open(cfgFile);
@@ -173,7 +173,9 @@ void SetCurrentProgram(uint32_t programID)
         jsonfile = nlohmann::json::parse(buffer);
         file.close();
         jsonfile["StateCollections"][0]["Current Selected State"] = programID;
-
+#ifdef CSL
+        jsonfile["StateCollections"][1]["Current Selected State"] = paused;
+#endif
         std::ofstream outfile;
         outfile.open(cfgFile, std::ios::out | std::ios::trunc);
 
@@ -229,39 +231,39 @@ bool startPlayer(uint32_t programID)
 #else
     int y, status;
     pid_t pid;
-if (last_pid == 0)
-{
+    if (last_pid == 0)
+    {
 
     pid = fork();
     sleep(1);
     if (pid < 0) {
 
-        /* This is an error */
-        perror("fork()");
-        return 1;
+            /* This is an error */
+            perror("fork()");
+            return 1;
 
-    }
-    else if (pid == 0) {
+        }
+        else if (pid == 0) {
 
-        /* This is the CHILD */
+            /* This is the CHILD */
 
-        execlp("/home/pi/pixile/player", "player", "-w 800",  "-h 600", "-s /home/pi/Desktop/script.pxz", (char*)0);
+            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", "-s /home/pi/Desktop/script.pxz", (char*)0);
 
-        perror("execlp()");
+            perror("execlp()");
 
-        /* An exec does NOT return. */
-        /* The next lines won't execute unless there's an error with exec. */
+            /* An exec does NOT return. */
+            /* The next lines won't execute unless there's an error with exec. */
 
-        printf("Child %u, parent %u\n", getpid(), getppid());
-        exit(0);
+            printf("Child %u, parent %u\n", getpid(), getppid());
+            exit(0);
 
-    }
-    else {
-        /* This is the PARENT */
-        printf("Parent %u says child PID is %u\n", getpid(), pid);
+        }
+        else {
+            /* This is the PARENT */
+            printf("Parent %u says child PID is %u\n", getpid(), pid);
 
-        last_pid = pid;
-    }
+            last_pid = pid;
+        }
     }
     else
     {
@@ -340,8 +342,8 @@ bool loadSchedule(const char* sFilename)
 #ifdef CSL
     for (int i = 0; i < 7; i++)
     {
-        if (jsonfile.contains(std::string("time\\day")))
-            bDays[i] = jsonfile["time"]["day"][i];
+        //if (jsonfile.contains(std::string("time/day")))
+        bDays[i] = jsonfile["time"]["day"][i];
     }
 #endif
 #ifdef WELLESLEY
@@ -529,7 +531,7 @@ EPS isProcessRunning(const wchar_t* processName)
     if (isTimeBetween(localTime))
     {
 
-     #ifdef _WIN32
+#ifdef _WIN32
         PROCESSENTRY32 entry;
         entry.dwSize = sizeof(PROCESSENTRY32);
 
@@ -541,7 +543,7 @@ EPS isProcessRunning(const wchar_t* processName)
                     status = PIXILE_STATUS_RUNNING;
 
         CloseHandle(snapshot);
-     #else
+#else
 
     if (last_pid != 0)
     {
@@ -562,7 +564,7 @@ EPS isProcessRunning(const wchar_t* processName)
             status = PIXILE_STATUS_OFF;
         }
 
-    #endif
+#endif
 
         if (localTime)
             delete localTime;
@@ -1027,8 +1029,12 @@ void DrawMainGUI()
 
 #ifdef CSL
     static bool bShowingContent = true;
+    static bool bPausedContent = false;
     bool bShowContent = false;
     bool bHideContent = false;
+    bool bPauseContent = false;
+    bool bResumeContent = false;
+
     ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
     ImGui::Text("Temporally Enable/Disable Content.");
     if (bShowingContent)
@@ -1049,6 +1055,26 @@ void DrawMainGUI()
         bHideContent = ImGui::Button("Content Off", ImVec2(200, 60));
         ImGui::PopStyleColor(3);
     }
+    ImGui::SameLine();
+    if (!bPausedContent)
+    {
+
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 128, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(64, 128, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 64, 16, 255));
+
+        bPauseContent = ImGui::Button("Content Normal", ImVec2(200, 60));
+        ImGui::PopStyleColor(3);
+    }
+    else
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
+        bResumeContent = ImGui::Button("Content Paused", ImVec2(200, 60));
+        ImGui::PopStyleColor(3);
+    }
+
     if (bShowContent && bShowingContent)
     {
         bShowingContent = false;
@@ -1057,7 +1083,17 @@ void DrawMainGUI()
     {
         bShowingContent = true;
     }
-    SetCurrentProgram(bShowingContent);
+
+    if (bResumeContent && bPausedContent)
+    {
+        bPausedContent = false;
+    }
+    if (bPauseContent && !bPausedContent)
+    {
+        bPausedContent = true;
+    }
+
+    SetCurrentProgram(bShowingContent, bPausedContent);
 
     ImGui::EndChildFrame();
 #endif // CSL
@@ -1103,7 +1139,11 @@ void CleanupIMGUI(GLFWwindow* window)
 int main(int, char**)
 {
 
-    //loadSchedule("C:\\Content\\Schedule.lsc");
+#ifdef _WIN32
+    loadSchedule("C:\\Content\\Schedule.lsc");
+#else
+    loadSchedule("/home/pi/Schedule.lsc");
+#endif
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
