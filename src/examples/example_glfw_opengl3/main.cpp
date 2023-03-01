@@ -159,10 +159,13 @@ void SetCurrentProgram(uint32_t programID, uint32_t paused = 0)
 {
     std::fstream fs;
     const std::filesystem::path sptPath = content_filename;
-
+#ifdef  _WIN32
     std::wstring cfgFile = (sptPath.parent_path().c_str());
     cfgFile.append(L"\\config.json");
-
+#else
+    std::string cfgFile = (sptPath.parent_path().c_str());
+    cfgFile.append("\\config.json");
+#endif // _WIN32
     std::ifstream file;
     file.open(cfgFile);
     if (file.is_open())
