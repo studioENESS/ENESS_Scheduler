@@ -54,9 +54,12 @@ pid_t last_pid = 0;
 
 #define USE_HARD_PATHS 1
 #define AUTO_RUNNER_ONLY
+#define ENABLE_SLEEP_PERIODS    // aka - prayer times.
+
+
 
 //#define WELLESLEY
-#define CSL
+//#define CSL
 
 
 struct SItemSchedule
@@ -65,7 +68,21 @@ struct SItemSchedule
     int8_t programID;
     tm startDate;
     tm endDate;
+
 };
+
+struct SSleepSchedule
+{
+
+    int32_t index;
+    uint8_t breaks;
+    tm startDate;
+    tm endDate;
+    int* hours;
+    int* minutes;
+    int* duration;
+};
+
 static bool bDays[7];
 enum EPS
 {
@@ -75,6 +92,7 @@ enum EPS
 };
 
 std::vector<SItemSchedule*> g_vecSchedule;
+std::vector<SSleepSchedule> g_vecSleepTimes;
 #ifdef WELLESLEY
 const char* content_item_names[] = {
     "Under The Sea",
@@ -103,6 +121,15 @@ static int end_hour = 20;
 static int end_minute = 55;
 static bool g_bUseAlternatePlayer = false;
 static bool g_bCanUseAlternatePlayer = false;
+static bool g_bUseMouse = false;
+struct sScreeninfo
+{
+    int x;
+    int y;
+    int w;
+    int h;
+};
+static sScreeninfo screeninfo{ 0,0,1024,768 };
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -194,7 +221,6 @@ bool startPlayer(uint32_t programID)
     PROCESS_INFORMATION pi;
     SetCurrentProgram(programID);
 
-
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
@@ -206,7 +232,19 @@ bool startPlayer(uint32_t programID)
 
     }
 
-    cmdLine.append(L"player.exe -w 1024 -h 768 \"");
+    cmdLine.append(L"player.exe");
+
+    cmdLine.append(L" -x ");
+    cmdLine.append(std::to_wstring(screeninfo.x));
+    cmdLine.append(L" -y ");
+    cmdLine.append(std::to_wstring(screeninfo.y));
+    cmdLine.append(L" -w ");
+    cmdLine.append(std::to_wstring(screeninfo.w));
+    cmdLine.append(L" -h ");
+    cmdLine.append(std::to_wstring(screeninfo.h));
+    cmdLine.append(L" -m ");
+    cmdLine.append(std::to_wstring(g_bUseMouse ? 2 : 0));
+    cmdLine.append(L" \"");
     cmdLine.append(content_filename);
     cmdLine.append(L"\"");
     const std::wstring wcmd = cmdLine;
@@ -237,9 +275,9 @@ bool startPlayer(uint32_t programID)
     if (last_pid == 0)
     {
 
-    pid = fork();
-    sleep(1);
-    if (pid < 0) {
+        pid = fork();
+        sleep(1);
+        if (pid < 0) {
 
             /* This is an error */
             perror("fork()");
@@ -338,6 +376,19 @@ bool loadSchedule(const char* sFilename)
         }
     }
 
+    if (jsonfile.contains(std::string("screen")))
+    {
+        screeninfo.x = jsonfile["screen"]["x"];
+        screeninfo.y = jsonfile["screen"]["y"];
+        screeninfo.w = jsonfile["screen"]["w"];
+        screeninfo.h = jsonfile["screen"]["h"];
+    }
+
+    if (jsonfile.contains(std::string("use_mouse")))
+    {
+        g_bUseMouse = jsonfile["use_mouse"];
+    }
+
     start_hour = jsonfile["time"]["start"]["hour"];
     start_minute = jsonfile["time"]["start"]["minute"];
     end_hour = jsonfile["time"]["end"]["hour"];
@@ -379,6 +430,35 @@ bool loadSchedule(const char* sFilename)
         g_vecSchedule.push_back(newItem);
     }
 #endif // WELLESLEY
+
+#ifdef ENABLE_SLEEP_PERIODS
+    if (jsonfile.contains(std::string("time\\sleep")))
+    {
+        for (auto& item : jsonfile["time"]["sleep"])
+        {
+            auto newItem = new SSleepSchedule;
+            newItem->index = (int32_t)g_vecSleepTimes.size();
+            newItem->startDate.tm_year = item["StartDate"]["Year"];
+            newItem->startDate.tm_mon = item["StartDate"]["Month"];
+            newItem->startDate.tm_mday = item["StartDate"]["Day"];
+            newItem->startDate.tm_yday = item["StartDate"]["YearDay"];
+            newItem->endDate.tm_year = item["EndDate"]["Year"];
+            newItem->endDate.tm_mon = item["EndDate"]["Month"];
+            newItem->endDate.tm_mday = item["EndDate"]["Day"];
+            newItem->endDate.tm_yday = item["EndDate"]["YearDay"];
+            newItem->breaks = item["breaks"].size();
+            newItem->duration = new int[newItem->breaks];
+            newItem->minutes = new int[newItem->breaks];
+            newItem->hours = new int[newItem->breaks];
+            for (int i = 0; i < newItem->breaks; ++i)
+            {
+                newItem->minutes[i] = item["breaks"][i]["minute"];
+                newItem->hours[i] = item["breaks"][i]["hour"];
+                newItem->duration[i] = item["breaks"][i]["duration"];
+            }
+        }
+    }
+#endif
     return bRes;
 }
 
@@ -396,6 +476,13 @@ bool saveSchedule(const char* sFilename)
         jsonfile["alternate_pixile_location"] = utf8_encode(alt_pixile_location);
         jsonfile["use_alternate_player"] = g_bUseAlternatePlayer;
     }
+
+    jsonfile["screen"]["x"] = screeninfo.x;
+    jsonfile["screen"]["y"] = screeninfo.y;
+    jsonfile["screen"]["w"] = screeninfo.w;
+    jsonfile["screen"]["h"] = screeninfo.h;
+    jsonfile["use_mouse"] = g_bUseMouse;
+
     jsonfile["time"]["start"]["hour"] = start_hour;
     jsonfile["time"]["start"]["minute"] = start_minute;
     jsonfile["time"]["end"]["hour"] = end_hour;
@@ -548,20 +635,20 @@ EPS isProcessRunning(const wchar_t* processName)
         CloseHandle(snapshot);
 #else
 
-    if (last_pid != 0)
-    {
-    pid_t pid;
-        int pud_status;
-        pid = waitpid(last_pid,&pud_status,WNOHANG);
-        if (status == 0) {
-            status = PIXILE_STATUS_RUNNING;
-        }
-        if (pid == -1)
+        if (last_pid != 0)
         {
-            status - PIXILE_STATUS_OFF;
-            last_pid =0;
+            pid_t pid;
+            int pud_status;
+            pid = waitpid(last_pid, &pud_status, WNOHANG);
+            if (status == 0) {
+                status = PIXILE_STATUS_RUNNING;
+            }
+            if (pid == -1)
+            {
+                status - PIXILE_STATUS_OFF;
+                last_pid = 0;
+            }
         }
-    }
         else
         {
             status = PIXILE_STATUS_OFF;
