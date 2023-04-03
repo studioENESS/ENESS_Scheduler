@@ -7,7 +7,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 
 #include <stdio.h>
 #define GL_SILENCE_DEPRECATION
@@ -57,6 +57,47 @@ pid_t last_pid = 0;
 #define ENABLE_SLEEP_PERIODS    // aka - prayer times.
 
 
+#ifdef _WIN32
+
+// Convert a wide Unicode string to an UTF8 string
+std::string utf8_encode(const std::wstring& wstr)
+{
+    if (wstr.empty()) return std::string();
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    return strTo;
+}
+
+// Convert an UTF8 string to a wide Unicode String
+std::wstring utf8_decode(const std::string& str)
+{
+    if (str.empty()) return std::wstring();
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+    return wstrTo;
+}
+#else
+#include <codecvt>
+std::wstring utf8_decode(const std::string& str)
+{
+    typedef std::codecvt_utf8<wchar_t> convert_typeX;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.from_bytes(str);
+}
+
+std::string utf8_encode(const std::wstring& str)
+{
+    typedef std::codecvt_utf8<wchar_t> convert_typeX;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.to_bytes(str);
+
+}
+
+#endif
 
 //#define WELLESLEY
 //#define CSL
@@ -274,6 +315,7 @@ bool startPlayer(uint32_t programID)
     pid_t pid;
     if (last_pid == 0)
     {
+printf("script: %s", utf8_encode(content_filename).c_str());
 
         pid = fork();
         sleep(1);
@@ -287,8 +329,7 @@ bool startPlayer(uint32_t programID)
         else if (pid == 0) {
 
             /* This is the CHILD */
-
-            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", "-s /home/pi/Desktop/script.pxz", (char*)0);
+            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", utf8_encode(content_filename).c_str(), (char*)0);
 
             perror("execlp()");
 
@@ -312,47 +353,6 @@ bool startPlayer(uint32_t programID)
 #endif
     return true;
 }
-#ifdef _WIN32
-
-// Convert a wide Unicode string to an UTF8 string
-std::string utf8_encode(const std::wstring& wstr)
-{
-    if (wstr.empty()) return std::string();
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-}
-
-// Convert an UTF8 string to a wide Unicode String
-std::wstring utf8_decode(const std::string& str)
-{
-    if (str.empty()) return std::wstring();
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
-    std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
-    return wstrTo;
-}
-#else
-#include <codecvt>
-std::wstring utf8_decode(const std::string& str)
-{
-    typedef std::codecvt_utf8<wchar_t> convert_typeX;
-    std::wstring_convert<convert_typeX, wchar_t> converterX;
-
-    return converterX.from_bytes(str);
-}
-
-std::string utf8_encode(const std::wstring& str)
-{
-    typedef std::codecvt_utf8<wchar_t> convert_typeX;
-    std::wstring_convert<convert_typeX, wchar_t> converterX;
-
-    return converterX.to_bytes(str);
-
-}
-
-#endif
 
 bool loadSchedule(const char* sFilename)
 {
@@ -364,6 +364,7 @@ bool loadSchedule(const char* sFilename)
     buffer << file.rdbuf();
     nlohmann::json jsonfile;
     jsonfile = nlohmann::json::parse(buffer);
+    printf("Test");
     content_filename = utf8_decode(jsonfile["content_filename"]);
     pixile_location = utf8_decode(jsonfile["pixile_location"]);
     if (jsonfile.contains(std::string("alternate_pixile_location")))
