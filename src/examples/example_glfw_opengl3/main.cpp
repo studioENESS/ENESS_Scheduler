@@ -46,6 +46,7 @@ pid_t last_pid = 0;
 #include <fstream>
 #include <iostream>
 #include <filesystem>
+#include <vector>
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
 #pragma comment(lib, "legacy_stdio_definitions")
@@ -54,8 +55,59 @@ pid_t last_pid = 0;
 
 #define USE_HARD_PATHS 1
 #define AUTO_RUNNER_ONLY
-#define ENABLE_SLEEP_PERIODS    // aka - prayer times.
+#define CHOOSE_DAYS
+//#define ENABLE_SLEEP_PERIODS    // aka - prayer times.
+//#define MUTLIPLE_SCRIPTS
 
+#ifdef MUTLIPLE_SCRIPTS
+struct SItemScript
+{
+    int32_t index{};
+    std::wstring filename;
+    std::wstring pixile_location;
+    std::wstring name;  // display_name
+};
+
+std::vector<SItemScript*> g_vecScripts;
+//#define WELLESLEY
+#endif // MUTLIPLE_SCRIPTS
+
+
+
+#define KINETIC
+
+#ifdef KINETIC
+struct SKineticData
+{
+    bool bNeedsCalibration;
+    bool bCalibrated;
+    int32_t iCalibrationHour;
+    int32_t iCalibrationMinute;
+    int32_t iCalibrationSecond;
+};
+
+void DeserialiseKinetic(const std::string& str, SKineticData& data)
+{
+    nlohmann::json j = nlohmann::json::parse(str);
+
+    data.bNeedsCalibration = j["bNeedsCalibration"];
+    data.bCalibrated = j["bCalibrated"];
+    data.iCalibrationHour = j["iCalibrationHour"];
+    data.iCalibrationMinute = j["iCalibrationMinute"];
+    data.iCalibrationSecond = j["iCalibrationSecond"];
+}
+
+void SerialiseKinetic(std::string& str, const SKineticData& data)
+{
+    nlohmann::json j;
+    j["bNeedsCalibration"] = data.bNeedsCalibration;
+    j["bCalibrated"] = data.bCalibrated;
+    j["iCalibrationHour"] = data.iCalibrationHour;
+    j["iCalibrationMinute"] = data.iCalibrationMinute;
+    j["iCalibrationSecond"] = data.iCalibrationSecond;
+    str = j.dump();
+}
+#endif
 
 #ifdef _WIN32
 
@@ -99,7 +151,8 @@ std::string utf8_encode(const std::wstring& str)
 
 #endif
 
-//#define WELLESLEY
+#define WELLESLEY
+//#define SCRIPT_V2
 //#define CSL
 
 
@@ -110,6 +163,9 @@ struct SItemSchedule
     tm startDate;
     tm endDate;
 
+    std::wstring sScript;
+    std::wstring sScriptLocation;
+    std::wstring sScriptExecutablePath;
 };
 
 struct SSleepSchedule
@@ -148,8 +204,41 @@ const char* content_item_names[] = {
     "Fireworks",
     "Birds",
     "Rain Umbrella",
+    "Spider Spider",
+    "Treasure Hunt",
+    "Fruit Match",
+    "Dandelion Bloomer",
+    "Shooting Stars",
+    "Tumble Block",
     "Nothing Scheduled"
 };
+
+
+const char* content_script_names[] = {
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "2038-Wellesley_auto.pxl",
+    "OF_Spider.pxl",
+    "OF_TreasureHunt.pxl",
+    "OF_FruitMatch.pxl",
+    "OF_Bloomer.pxl",
+    "OF_ShootingStar.pxl",
+    "OF_TumbleBlock.pxl",
+    "blank.pxl"
+};
+
+/*
+
+*/
 #endif
 
 std::wstring content_filename = L"D:\\Eness_Projects\\2038-Wellesley-Library\\Pixile_Sketch\\Packed\\2038-Wellesley_auto.pxl";
@@ -253,6 +342,10 @@ void SetCurrentProgram(uint32_t programID, uint32_t paused = 0)
         outfile << jsonfile.dump(4);
         outfile.close();
     }
+
+    content_filename = sptPath.parent_path();
+    content_filename.append(L"\\");
+    content_filename.append(utf8_decode(content_script_names[programID]));
 }
 
 bool startPlayer(uint32_t programID)
@@ -315,7 +408,7 @@ bool startPlayer(uint32_t programID)
     pid_t pid;
     if (last_pid == 0)
     {
-printf("script: %s", utf8_encode(content_filename).c_str());
+        printf("script: %s", utf8_encode(content_filename).c_str());
 
         pid = fork();
         sleep(1);
@@ -367,6 +460,7 @@ bool loadSchedule(const char* sFilename)
     printf("Test");
     content_filename = utf8_decode(jsonfile["content_filename"]);
     pixile_location = utf8_decode(jsonfile["pixile_location"]);
+
     if (jsonfile.contains(std::string("alternate_pixile_location")))
     {
         g_bCanUseAlternatePlayer = true;
@@ -394,11 +488,23 @@ bool loadSchedule(const char* sFilename)
     start_minute = jsonfile["time"]["start"]["minute"];
     end_hour = jsonfile["time"]["end"]["hour"];
     end_minute = jsonfile["time"]["end"]["minute"];
-#ifdef CSL
+#ifdef CHOOSE_DAYS
     for (int i = 0; i < 7; i++)
     {
         //if (jsonfile.contains(std::string("time/day")))
         bDays[i] = jsonfile["time"]["day"][i];
+    }
+#endif
+#ifdef MUTLIPLE_SCRIPTS
+    for (auto& item : jsonfile["scripts"])
+    {
+        auto newItem = new SItemScript;
+
+        newItem->index = (int32_t)g_vecScripts.size();
+        newItem->filename = utf8_decode(item["filename"]);
+        newItem->pixile_location = utf8_decode(item["pixile_location"]);
+        newItem->name = utf8_decode(item["name"]);
+        g_vecScripts.push_back(newItem);
     }
 #endif
 #ifdef WELLESLEY
@@ -428,6 +534,17 @@ bool loadSchedule(const char* sFilename)
         newItem->endDate.tm_mday = item["EndDate"]["Day"];
         newItem->endDate.tm_yday = item["EndDate"]["YearDay"];
         newItem->programID = item["ProgramID"];
+        newItem->sScript = content_filename;
+        newItem->sScriptExecutablePath = pixile_location;
+        if (item.contains("Script"))
+        {
+            newItem->sScript = utf8_decode(item["Script"]);
+        }
+        if (item.contains("Executable"))
+        {
+            newItem->sScriptExecutablePath = utf8_decode(item["Executable"]);
+        }
+
         g_vecSchedule.push_back(newItem);
     }
 #endif // WELLESLEY
@@ -469,9 +586,10 @@ bool saveSchedule(const char* sFilename)
     bool bRes = true;
     std::ofstream outfile;
     nlohmann::json jsonfile;
-    jsonfile["cmdline"] = "player.exe -w 1920 -h 1080 -s c:\\content\\weleslley\\script.pxl";
+    //jsonfile["cmdline"] = "player.exe -w 1920 -h 1080 -s c:\\content\\weleslley\\script.pxl";
     jsonfile["content_filename"] = utf8_encode(content_filename);
     jsonfile["pixile_location"] = utf8_encode(pixile_location);
+
     if (g_bCanUseAlternatePlayer)
     {
         jsonfile["alternate_pixile_location"] = utf8_encode(alt_pixile_location);
@@ -482,13 +600,15 @@ bool saveSchedule(const char* sFilename)
     jsonfile["screen"]["y"] = screeninfo.y;
     jsonfile["screen"]["w"] = screeninfo.w;
     jsonfile["screen"]["h"] = screeninfo.h;
+
     jsonfile["use_mouse"] = g_bUseMouse;
 
     jsonfile["time"]["start"]["hour"] = start_hour;
     jsonfile["time"]["start"]["minute"] = start_minute;
     jsonfile["time"]["end"]["hour"] = end_hour;
     jsonfile["time"]["end"]["minute"] = end_minute;
-#ifdef CSL
+
+#ifdef CHOOSE_DAYS
     for (int i = 0; i < 7; i++)
     {
         jsonfile["time"]["day"][i] = bDays[i];
@@ -509,6 +629,19 @@ bool saveSchedule(const char* sFilename)
         jsonfile["schedule"][sched->index]["EndDate"]["Day"] = sched->endDate.tm_mday;
         jsonfile["schedule"][sched->index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
         jsonfile["schedule"][sched->index]["ProgramID"] = sched->programID;
+        jsonfile["schedule"][sched->index]["Script"] = utf8_encode(sched->sScript);
+        jsonfile["schedule"][sched->index]["Executable"] = utf8_encode(sched->sScriptExecutablePath);
+
+    }
+#endif
+
+#ifdef MUTLIPLE_SCRIPTS
+    for (const auto& script : g_vecScripts)
+    {
+        jsonfile["scripts"][script->index]["name"] = utf8_encode(script->name);
+        jsonfile["scripts"][script->index]["index"] = script->index;
+        jsonfile["scripts"][script->index]["filename"] = utf8_encode(script->filename);
+        jsonfile["scripts"][script->index]["pixile_location"] = utf8_encode(script->pixile_location);
     }
 #endif
     std::string fileName = sFilename;
@@ -586,7 +719,7 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
 }
 
 bool isTimeBetween(tm* time) {
-#ifdef CSL
+#ifdef CHOOSE_DAYS
     if (!IsValidDayOfWeek())
         return false;
 #endif
@@ -804,25 +937,30 @@ void createScheduleItem(SItemSchedule* item)
     delete localTime;
     ImGui::PushID(item->index);
     std::string node_name;
+#ifndef MUTLIPLE_SCRIPTS
     node_name.append(bHighlight ? "* " : "").append(content_item_names[item->programID]);
-    //node_name.append(std::to_string(item->index));
+#else
+    node_name.append(bHighlight ? "* " : "").append("TEST");
+#endif//node_name.append(std::to_string(item->index));
     node_name.append(" From: ");
     static char startDateText[128]; strftime(startDateText, 128, "%b %d %Y", &item->startDate);
     node_name.append(startDateText);
     node_name.append(" To: ");
     static char endDateText[128]; strftime(endDateText, 128, "%b %d %Y", &item->endDate);
     node_name.append(endDateText);
+
     if (bHighlight)
     {
-        node_name.append(" * ACTIVE");
+        node_name.append(" *");
     }
-
 
     node_name.append("###").append(std::to_string(item->index));
     //pushStyleColours18(item->programID / 12.f, bHighlight);
     bool node_open = ImGui::TreeNodeEx(node_name.c_str(), ImGuiSelectableFlags_SpanAllColumns);
     if (node_open)
     {
+#ifndef MUTLIPLE_SCRIPTS
+
         ImGui::SetNextItemWidth(180);
         if (ImGui::DateChooser("Scheduled Start Date", item->startDate, "%b %d %Y"))
         {
@@ -838,9 +976,10 @@ void createScheduleItem(SItemSchedule* item)
 
 
         ImGui::SetNextItemWidth(180);
+
         if (ImGui::BeginCombo("Program", content_item_names[item->programID]))
         {
-            for (int pr = 0; pr < 12; pr++)
+            for (int pr = 0; pr < 19; pr++)
             {
                 const bool is_selected = (item->programID == pr);
 
@@ -855,7 +994,9 @@ void createScheduleItem(SItemSchedule* item)
             }
             ImGui::EndCombo();
         }
+#else
 
+#endif // !MUTLIPLE_SCRIPTS
         //ImGui::Checkbox("Debug Status", &bPixileRunning);
         ImGui::TreePop();
 
@@ -868,6 +1009,29 @@ void createScheduleItem(SItemSchedule* item)
     //   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 }
+
+void createMultiScriptItem(void)
+{
+#ifdef MUTLIPLE_SCRIPTS
+    for (auto script : g_vecScripts)
+    {
+        ImGui::PushID(script->index);
+        {
+            std::string node_name;
+            node_name.append(utf8_encode(script->name));
+            //node_name.append();
+            node_name.append("###").append(std::to_string(script->index));
+            bool node_open = ImGui::TreeNodeEx(node_name.c_str(), ImGuiSelectableFlags_SpanAllColumns);
+            if (node_open)
+            {
+
+            }
+        }
+    }
+#endif
+
+}
+
 void StyleColorsPhotoshop()
 {
     ImGuiStyle* style = &ImGui::GetStyle();
@@ -963,6 +1127,20 @@ void DrawMainGUI()
     {
         SetCurrentProgram(item);
     }
+    if (lastItem != item)
+    {
+        if (item >= 12)
+        {
+            killPlayer();
+        }
+        else
+        {
+            if (lastItem >= 12)
+            {
+                killPlayer();
+            }
+        }
+    }
     lastItem = item;
 #ifdef IMGUI_HAS_VIEWPORT
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -979,11 +1157,8 @@ void DrawMainGUI()
     static int counter = 0;
 
 
-#ifdef WELLESLEY
-    ImGui::Begin("Wellesley Lumes Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
-#else
-    ImGui::Begin("Pixile Player Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
-#endif
+    ImGui::Begin("ENESS Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+
     auto running = isProcessRunning(L"player.exe");
     ImGui::Text("Current Player Status:");
     ImGui::SameLine();
@@ -1028,12 +1203,17 @@ void DrawMainGUI()
 
         }
     }
+#ifdef MUTLIPLE_SCRIPTS
+    ImGui::Text("Current Scheduled Content: ");
+    ImGui::SameLine();
+
+#else
 #ifdef WELLESLEY
     ImGui::Text("Current Scheduled Content: ");
     ImGui::SameLine();
     ImGui::Text(content_item_names[item]);
 #endif
-
+#endif
 
     ImGui::Text("Staring Time"); ImGui::SameLine();
     createTimeCombo("Scheduled Start Time (Per Day)", start_hour, start_minute);
@@ -1041,7 +1221,7 @@ void DrawMainGUI()
     ImGui::Text("Ending Time"); ImGui::SameLine();
     createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
 
-#ifdef CSL
+#ifdef CHOOSE_DAYS
     ImGui::Text("Active Days");
     ImGui::Checkbox("Monday", &bDays[1]); ImGui::SameLine();
     ImGui::Checkbox("Tuesday", &bDays[2]); ImGui::SameLine();
@@ -1067,7 +1247,7 @@ void DrawMainGUI()
     ImGui::PopStyleColor(3);
 
 
-#ifdef  WELLESLEY
+#ifdef WELLESLEY 
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 0, 128, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 0, 200, 255));
@@ -1084,6 +1264,7 @@ void DrawMainGUI()
     ImGui::PopStyleColor(3);
 
 #endif //  WELLESLEY
+
 
 
     if (bLoadSchedule)
@@ -1118,6 +1299,9 @@ void DrawMainGUI()
     ImGui::EndChildFrame();
 #endif // WELLESLEY
 
+#ifdef MUTLIPLE_SCRIPTS
+    createMultiScriptItem();
+#endif
 #ifdef CSL
     static bool bShowingContent = true;
     static bool bPausedContent = false;
