@@ -151,10 +151,10 @@ std::string utf8_encode(const std::wstring& str)
 
 #endif
 
-#define WELLESLEY
+//#define WELLESLEY
 //#define SCRIPT_V2
 //#define CSL
-
+#define GOOGLE
 
 struct SItemSchedule
 {
@@ -162,7 +162,13 @@ struct SItemSchedule
     int8_t programID;
     tm startDate;
     tm endDate;
-
+#ifdef GOOGLE
+    int start_hour = 6;
+    int start_minute = 55;
+    int end_hour = 20;
+    int end_minute = 55;
+    bool deleteMe = false;
+#endif
     std::wstring sScript;
     std::wstring sScriptLocation;
     std::wstring sScriptExecutablePath;
@@ -343,9 +349,11 @@ void SetCurrentProgram(uint32_t programID, uint32_t paused = 0)
         outfile.close();
     }
 
+    #ifdef WELLESLEY
     content_filename = sptPath.parent_path();
     content_filename.append(L"\\");
     content_filename.append(utf8_decode(content_script_names[programID]));
+#endif
 }
 
 bool startPlayer(uint32_t programID)
@@ -507,6 +515,44 @@ bool loadSchedule(const char* sFilename)
         g_vecScripts.push_back(newItem);
     }
 #endif
+
+
+#ifdef GOOGLE
+
+
+
+    for (auto item : g_vecSchedule)
+    {
+        delete item;
+    }
+
+    g_vecSchedule.clear();
+
+    for (auto& item : jsonfile["schedule"])
+    {
+        auto newItem = new SItemSchedule;
+        newItem->index = (int32_t)g_vecSchedule.size();
+        ImGui::SetDateToday(&newItem->startDate);
+        ImGui::SetDateToday(&newItem->endDate);
+        newItem->index = item["index"];
+        newItem->startDate.tm_year = item["StartDate"]["Year"];
+        newItem->startDate.tm_mon = item["StartDate"]["Month"];
+        newItem->startDate.tm_mday = item["StartDate"]["Day"];
+        newItem->startDate.tm_yday = item["StartDate"]["YearDay"];
+        newItem->endDate.tm_year = item["EndDate"]["Year"];
+        newItem->endDate.tm_mon = item["EndDate"]["Month"];
+        newItem->endDate.tm_mday = item["EndDate"]["Day"];
+        newItem->endDate.tm_yday = item["EndDate"]["YearDay"];
+        newItem->start_hour = item["time"]["start"]["hour"];
+        newItem->start_minute = item["time"]["start"]["minute"];
+        newItem->end_hour = item["time"]["end"]["hour"];
+        newItem->end_minute = item["time"]["end"]["minute"];
+
+
+        g_vecSchedule.push_back(newItem);
+    }
+#endif // GOOGLE
+
 #ifdef WELLESLEY
 
 
@@ -533,6 +579,7 @@ bool loadSchedule(const char* sFilename)
         newItem->endDate.tm_mon = item["EndDate"]["Month"];
         newItem->endDate.tm_mday = item["EndDate"]["Day"];
         newItem->endDate.tm_yday = item["EndDate"]["YearDay"];
+        newIte->
         newItem->programID = item["ProgramID"];
         newItem->sScript = content_filename;
         newItem->sScriptExecutablePath = pixile_location;
@@ -614,6 +661,25 @@ bool saveSchedule(const char* sFilename)
         jsonfile["time"]["day"][i] = bDays[i];
     }
 #endif
+#ifdef GOOGLE 
+    for (const auto sched : g_vecSchedule)
+    {
+        jsonfile["schedule"][sched->index]["index"] = sched->index;
+        jsonfile["schedule"][sched->index]["StartDate"]["Year"] = sched->startDate.tm_year;
+        jsonfile["schedule"][sched->index]["StartDate"]["Month"] = sched->startDate.tm_mon;
+        jsonfile["schedule"][sched->index]["StartDate"]["Day"] = sched->startDate.tm_mday;
+        jsonfile["schedule"][sched->index]["StartDate"]["YearDay"] = sched->startDate.tm_yday;
+
+        jsonfile["schedule"][sched->index]["EndDate"]["Year"] = sched->endDate.tm_year;
+        jsonfile["schedule"][sched->index]["EndDate"]["Month"] = sched->endDate.tm_mon;
+        jsonfile["schedule"][sched->index]["EndDate"]["Day"] = sched->endDate.tm_mday;
+        jsonfile["schedule"][sched->index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
+        jsonfile["schedule"][sched->index]["time"]["start"]["hour"] = sched->start_hour;
+        jsonfile["schedule"][sched->index]["time"]["start"]["minute"] = sched->start_minute;
+        jsonfile["schedule"][sched->index]["time"]["end"]["hour"] = sched->end_hour;
+        jsonfile["schedule"][sched->index]["time"]["end"]["minute"] = sched->end_minute;
+    }
+#endif // 
 #ifdef WELLESLEY
 
     for (const auto sched : g_vecSchedule)
@@ -718,23 +784,21 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
     return true;
 }
 
-bool isTimeBetween(tm* time) {
-#ifdef CHOOSE_DAYS
-    if (!IsValidDayOfWeek())
-        return false;
-#endif
-    if (time->tm_hour < start_hour || time->tm_hour > end_hour) {
+bool isTimeBetween(tm* time, int cur_start_hour, int cur_start_minute, int cur_end_hour, int cur_end_minute) {
+
+
+    if (time->tm_hour < cur_start_hour || time->tm_hour > cur_end_hour) {
         return false;
     }
-    if (time->tm_hour == start_hour) {
-        if (time->tm_min < start_minute) {
+    if (time->tm_hour == cur_start_hour) {
+        if (time->tm_min < cur_start_minute) {
             return false;
         }
 
     }
 
-    if (time->tm_hour == end_hour) {
-        if (time->tm_min > end_minute) {
+    if (time->tm_hour == cur_end_hour) {
+        if (time->tm_min > cur_end_minute) {
             return false;
         }
 
@@ -743,7 +807,7 @@ bool isTimeBetween(tm* time) {
     return true;
 }
 
-EPS isProcessRunning(const wchar_t* processName)
+EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
 {
     EPS status = PIXILE_STATUS_OFF;
 
@@ -751,8 +815,24 @@ EPS isProcessRunning(const wchar_t* processName)
     const time_t currentTime = time(0);
     tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
+    bool inTime = false;
+    bool validDay = true;
+#ifdef CHOOSE_DAYS
+    if (!IsValidDayOfWeek())
+        validDay= false;
+#endif
 
-    if (isTimeBetween(localTime))
+    if (scheduleItem == -1)
+        inTime = isTimeBetween(localTime,start_hour, start_minute, end_hour, end_minute);
+    else
+    {
+        inTime = isTimeBetween(localTime, g_vecSchedule[scheduleItem]->start_hour,
+            g_vecSchedule[scheduleItem]->start_minute,
+            g_vecSchedule[scheduleItem]->end_hour,
+            g_vecSchedule[scheduleItem]->end_minute);
+        validDay = true;
+    }
+    if (inTime && validDay)
     {
 
 #ifdef _WIN32
@@ -805,24 +885,32 @@ EPS isProcessRunning(const wchar_t* processName)
 
 int GetCurrentScheduledItem()
 {
-#
+
     time_t currentTime = time(0);
     tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
 
-
+    int index = 0;
     for (auto& item : g_vecSchedule)
     {
         if (isDateBetween(localTime, &item->startDate, &item->endDate))
         {
             if (localTime)
                 delete localTime;
+#ifdef GOOGLE
+            return index;
+#else
             return item->programID;
+#endif
         }
+        index++;
     }
 
     if (localTime)
         delete localTime;
+#ifdef GOOGLE
+    return -1;
+#endif
     return 12;
 }
 
@@ -927,7 +1015,7 @@ void pushStyleColours18(float h, bool active = false) {
 void createScheduleItem(SItemSchedule* item)
 {
     item->index = item->index;
-#ifdef WELLESLEY
+#if defined(WELLESLEY) || defined(GOOGLE)
     bool bHighlight = false;
     time_t currentTime = time(0);
     tm* localTime = new tm();
@@ -937,10 +1025,10 @@ void createScheduleItem(SItemSchedule* item)
     delete localTime;
     ImGui::PushID(item->index);
     std::string node_name;
-#ifndef MUTLIPLE_SCRIPTS
+#ifndef GOOGLE
     node_name.append(bHighlight ? "* " : "").append(content_item_names[item->programID]);
 #else
-    node_name.append(bHighlight ? "* " : "").append("TEST");
+    node_name.append(bHighlight ? "* " : "");
 #endif//node_name.append(std::to_string(item->index));
     node_name.append(" From: ");
     static char startDateText[128]; strftime(startDateText, 128, "%b %d %Y", &item->startDate);
@@ -976,7 +1064,7 @@ void createScheduleItem(SItemSchedule* item)
 
 
         ImGui::SetNextItemWidth(180);
-
+#ifdef WELLESLEY
         if (ImGui::BeginCombo("Program", content_item_names[item->programID]))
         {
             for (int pr = 0; pr < 19; pr++)
@@ -994,6 +1082,23 @@ void createScheduleItem(SItemSchedule* item)
             }
             ImGui::EndCombo();
         }
+#endif
+#ifdef GOOGLE
+        ImGui::Text("Staring Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled Start Time (Per Day)", item->start_hour, item->start_minute);
+
+        ImGui::Text("Ending Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled End Time (Per Day)", item->end_hour, item->end_minute);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
+        if (ImGui::Button("Delete Item"))
+        {
+            item->deleteMe = true;
+        }
+        ImGui::PopStyleColor(3);
+#endif
 #else
 
 #endif // !MUTLIPLE_SCRIPTS
@@ -1005,6 +1110,7 @@ void createScheduleItem(SItemSchedule* item)
     //ImGui::PopStyleColor(18);
 
     ImGui::PopID();
+
 #endif
     //   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
@@ -1158,8 +1264,9 @@ void DrawMainGUI()
 
 
     ImGui::Begin("ENESS Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+    
+    auto running = isProcessRunning(L"player.exe", item);
 
-    auto running = isProcessRunning(L"player.exe");
     ImGui::Text("Current Player Status:");
     ImGui::SameLine();
     switch (running)
@@ -1247,7 +1354,7 @@ void DrawMainGUI()
     ImGui::PopStyleColor(3);
 
 
-#ifdef WELLESLEY 
+#if defined(WELLESLEY) || defined(GOOGLE) 
     ImGui::SameLine();
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 0, 128, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 0, 200, 255));
@@ -1287,7 +1394,7 @@ void DrawMainGUI()
         save_file = std::make_shared<pfd::save_file>("Choose file", "C:\\", filters);
 #endif
     }
-#ifdef WELLESLEY
+#if defined(WELLESLEY) || defined(GOOGLE)
     AddScheduleItem(bAddItem, bValidate);
 
     ImGui::BeginChildFrame(2, ImGui::GetContentRegionAvail());
@@ -1295,6 +1402,11 @@ void DrawMainGUI()
     {
         createScheduleItem(sched);
     }
+    // Lambda function to define the condition
+    auto condition = [](SItemSchedule* x) { return x->deleteMe; };
+
+    // Use remove_if to move elements satisfying the condition to the end of the vector
+    g_vecSchedule.erase(std::remove_if(g_vecSchedule.begin(), g_vecSchedule.end(), condition), g_vecSchedule.end());
 
     ImGui::EndChildFrame();
 #endif // WELLESLEY
@@ -1449,7 +1561,7 @@ int main(int, char**)
 
     int iWWidth = 400;
     int iWHeight = 260;
-#ifdef WELLESLEY
+#if defined(WELLESLEY) || defined(GOOGLE)
     iWHeight = 400;
 #endif
     GLFWwindow* window = nullptr;
