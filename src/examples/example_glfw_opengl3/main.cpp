@@ -26,6 +26,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 pid_t last_pid = 0;
+pid_t client_pid =0;
+
 #define INTERVAL 2
 #endif
 #ifndef mymax
@@ -69,11 +71,23 @@ struct SItemScript
 };
 
 std::vector<SItemScript*> g_vecScripts;
-//#define WELLESLEY
+
 #endif // MUTLIPLE_SCRIPTS
+//#define WELLESLEY
 
+//#define AUDIO_TWEEKER
+#ifdef AUDIO_TWEEKER
+struct SAudioTime
+{
+    int start_hour;
+    int start_minute;
+    int end_hour;
+    int end_mintute;
+    int percentage;
+};
 
-
+std::vector<SAudioTime> g_vecAudioTimes;
+#endif
 #define KINETIC
 
 #ifdef KINETIC
@@ -167,11 +181,12 @@ struct SItemSchedule
     int start_minute = 55;
     int end_hour = 20;
     int end_minute = 55;
-    bool deleteMe = false;
+    
 #endif
     std::wstring sScript;
     std::wstring sScriptLocation;
     std::wstring sScriptExecutablePath;
+    bool deleteMe = false;
 };
 
 struct SSleepSchedule
@@ -193,10 +208,21 @@ enum EPS
     PIXILE_STATUS_RUNNING,
     PIXILE_STATUS_NOTSCHEDULED
 };
-
+// Custom comparison function for sorting based on startDate
+bool compareByStartDate(const SItemSchedule* a, const SItemSchedule* b) {
+    tm a_tm = a->startDate;
+    tm b_tm = b->startDate;
+    return std::mktime(&a_tm) < std::mktime(&b_tm);
+}
 std::vector<SItemSchedule*> g_vecSchedule;
 std::vector<SSleepSchedule> g_vecSleepTimes;
 #ifdef WELLESLEY
+
+struct ContentItem {
+    std::string name;
+    std::string scriptName;
+};
+/*
 const char* content_item_names[] = {
     "Under The Sea",
     "New England Winter",
@@ -241,16 +267,52 @@ const char* content_script_names[] = {
     "OF_TumbleBlock.pxl",
     "blank.pxl"
 };
+*/
+std::vector<ContentItem> content_items;
 
+
+void storeContentItemDataToJson(const std::vector<ContentItem>& items, const std::string& filename) {
+    nlohmann::json jsonData;
+    for (const auto& item : items) {
+        jsonData.push_back({
+            {"name", item.name},
+            {"scriptName", item.scriptName}
+            });
+    }
+
+    std::ofstream outputFile(filename);
+    outputFile << std::setw(4) << jsonData << std::endl;
+    outputFile.close();
+}
+
+std::vector<ContentItem> loadContentItemDataFromJson(const std::string& filename) {
+    std::vector<ContentItem> items;
+    std::ifstream inputFile(filename);
+    if (inputFile.is_open()) {
+        nlohmann::json jsonData;
+        inputFile >> jsonData;
+
+        for (const auto& item : jsonData) {
+            ContentItem newItem;
+            newItem.name = item["name"];
+            newItem.scriptName = item["scriptName"];
+            items.push_back(newItem);
+        }
+
+        inputFile.close();
+    }
+    return items;
+}
 /*
 
 */
 #endif
 
 std::wstring content_filename = L"D:\\Eness_Projects\\2038-Wellesley-Library\\Pixile_Sketch\\Packed\\2038-Wellesley_auto.pxl";
+std::wstring orig_content_filename = L"D:\\Eness_Projects\\2038-Wellesley-Library\\Pixile_Sketch\\Packed\\2038-Wellesley_auto.pxl";
 std::wstring pixile_location = L"C:\\Eness_Projects\\pixile\\Bin\\Studio\\Release\\";
 std::wstring alt_pixile_location = L"C:\\Eness_Projects\\pixile\\Bin\\Studio\\Release\\";
-
+std::wstring client_filename = L"";
 static int start_hour = 6;
 static int start_minute = 55;
 static int end_hour = 20;
@@ -314,6 +376,11 @@ bool killPlayer()
         kill(last_pid, 1);
         last_pid = 0;
     }
+    if (client_pid!= 0)
+    {
+        kill(client_pid, 1);
+        client_pid = 0;
+    }
 #endif
     return bResult;
 }
@@ -321,7 +388,14 @@ bool killPlayer()
 void SetCurrentProgram(uint32_t programID, uint32_t paused = 0)
 {
     std::fstream fs;
-    const std::filesystem::path sptPath = content_filename;
+    std::filesystem::path sptPath = orig_content_filename;
+#ifdef WELLESLEY
+    content_filename = sptPath.parent_path();
+    content_filename.append(L"\\");
+    content_filename.append(utf8_decode(content_items[programID].scriptName));
+    sptPath = content_filename;
+
+#endif
 #ifdef  _WIN32
     std::wstring cfgFile = (sptPath.parent_path().c_str());
     cfgFile.append(L"\\config.json");
@@ -349,11 +423,11 @@ void SetCurrentProgram(uint32_t programID, uint32_t paused = 0)
         outfile.close();
     }
 
-    #ifdef WELLESLEY
+    /*#ifdef WELLESLEY
     content_filename = sptPath.parent_path();
     content_filename.append(L"\\");
-    content_filename.append(utf8_decode(content_script_names[programID]));
-#endif
+    content_filename.append(utf8_decode(content_items[programID].scriptName));
+#endif*/
 }
 
 bool startPlayer(uint32_t programID)
@@ -451,6 +525,44 @@ bool startPlayer(uint32_t programID)
     else
     {
     }
+
+    if (client_pid == 0 && client_filename.size() != 0)
+    {
+        printf("script: %s", utf8_encode(client_filename).c_str());
+
+        pid = fork();
+        sleep(1);
+        if (pid < 0) {
+
+            /* This is an error */
+            perror("fork()");
+            return 1;
+
+        }
+        else if (pid == 0) {
+
+            /* This is the CHILD */
+            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", utf8_encode(client_filename).c_str(), (char*)0);
+
+            perror("execlp()");
+
+            /* An exec does NOT return. */
+            /* The next lines won't execute unless there's an error with exec. */
+
+            printf("Child %u, parent %u\n", getpid(), getppid());
+            exit(0);
+
+        }
+        else {
+            /* This is the PARENT */
+            printf("Parent %u says child PID is %u\n", getpid(), pid);
+
+            client_pid = pid;
+        }
+    }
+    else
+    {
+    }
 #endif
     return true;
 }
@@ -466,7 +578,14 @@ bool loadSchedule(const char* sFilename)
     nlohmann::json jsonfile;
     jsonfile = nlohmann::json::parse(buffer);
     printf("Test");
-    content_filename = utf8_decode(jsonfile["content_filename"]);
+    //content_filename = utf8_decode(jsonfile["content_filename"]);
+    orig_content_filename = utf8_decode(jsonfile["content_filename"]);
+    content_filename = orig_content_filename;
+    if (jsonfile.contains(std::string("client_filename")))
+    {
+        client_filename = utf8_decode(jsonfile["client_filename"]);
+    }
+
     pixile_location = utf8_decode(jsonfile["pixile_location"]);
 
     if (jsonfile.contains(std::string("alternate_pixile_location")))
@@ -566,6 +685,9 @@ bool loadSchedule(const char* sFilename)
 
     for (auto& item : jsonfile["schedule"])
     {
+        if (item.is_null())
+            continue;
+
         auto newItem = new SItemSchedule;
         newItem->index = (int32_t)g_vecSchedule.size();
         ImGui::SetDateToday(&newItem->startDate);
@@ -579,8 +701,10 @@ bool loadSchedule(const char* sFilename)
         newItem->endDate.tm_mon = item["EndDate"]["Month"];
         newItem->endDate.tm_mday = item["EndDate"]["Day"];
         newItem->endDate.tm_yday = item["EndDate"]["YearDay"];
-        newIte->
-        newItem->programID = item["ProgramID"];
+        //newIte->
+        if (item.contains("ProgramID"))
+            newItem->programID = item["ProgramID"];
+
         newItem->sScript = content_filename;
         newItem->sScriptExecutablePath = pixile_location;
         if (item.contains("Script"))
@@ -594,6 +718,8 @@ bool loadSchedule(const char* sFilename)
 
         g_vecSchedule.push_back(newItem);
     }
+
+    std::sort(g_vecSchedule.begin(), g_vecSchedule.end(), compareByStartDate);
 #endif // WELLESLEY
 
 #ifdef ENABLE_SLEEP_PERIODS
@@ -624,6 +750,21 @@ bool loadSchedule(const char* sFilename)
         }
     }
 #endif
+    #ifdef AUDIO_TWEEKER
+        if (jsonfile.contains(std::string("audio_times")))
+        {
+            for (auto& item : jsonfile["audio_times"])
+            {
+                SAudioTime audioTime;
+                audioTime.start_hour = item["start_hour"];
+                audioTime.start_minute = item["start_minute"];
+                audioTime.end_hour = item["end_hour"];
+                audioTime.end_mintute = item["end_minute"];
+                audioTime.percentage = item["percentage"];
+                g_vecAudioTimes.push_back(audioTime);
+            }
+        }
+    #endif
     return bRes;
 }
 
@@ -634,7 +775,8 @@ bool saveSchedule(const char* sFilename)
     std::ofstream outfile;
     nlohmann::json jsonfile;
     //jsonfile["cmdline"] = "player.exe -w 1920 -h 1080 -s c:\\content\\weleslley\\script.pxl";
-    jsonfile["content_filename"] = utf8_encode(content_filename);
+    jsonfile["content_filename"] = utf8_encode(orig_content_filename);
+	jsonfile["client_filename"] =  utf8_encode(client_filename);
     jsonfile["pixile_location"] = utf8_encode(pixile_location);
 
     if (g_bCanUseAlternatePlayer)
@@ -681,23 +823,23 @@ bool saveSchedule(const char* sFilename)
     }
 #endif // 
 #ifdef WELLESLEY
-
+    int index= 0;
     for (const auto sched : g_vecSchedule)
     {
-        jsonfile["schedule"][sched->index]["index"] = sched->index;
-        jsonfile["schedule"][sched->index]["StartDate"]["Year"] = sched->startDate.tm_year;
-        jsonfile["schedule"][sched->index]["StartDate"]["Month"] = sched->startDate.tm_mon;
-        jsonfile["schedule"][sched->index]["StartDate"]["Day"] = sched->startDate.tm_mday;
-        jsonfile["schedule"][sched->index]["StartDate"]["YearDay"] = sched->startDate.tm_yday;
+        jsonfile["schedule"][index]["index"] = index;
+        jsonfile["schedule"][index]["StartDate"]["Year"] = sched->startDate.tm_year;
+        jsonfile["schedule"][index]["StartDate"]["Month"] = sched->startDate.tm_mon;
+        jsonfile["schedule"][index]["StartDate"]["Day"] = sched->startDate.tm_mday;
+        jsonfile["schedule"][index]["StartDate"]["YearDay"] = sched->startDate.tm_yday;
 
-        jsonfile["schedule"][sched->index]["EndDate"]["Year"] = sched->endDate.tm_year;
-        jsonfile["schedule"][sched->index]["EndDate"]["Month"] = sched->endDate.tm_mon;
-        jsonfile["schedule"][sched->index]["EndDate"]["Day"] = sched->endDate.tm_mday;
-        jsonfile["schedule"][sched->index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
-        jsonfile["schedule"][sched->index]["ProgramID"] = sched->programID;
-        jsonfile["schedule"][sched->index]["Script"] = utf8_encode(sched->sScript);
-        jsonfile["schedule"][sched->index]["Executable"] = utf8_encode(sched->sScriptExecutablePath);
-
+        jsonfile["schedule"][index]["EndDate"]["Year"] = sched->endDate.tm_year;
+        jsonfile["schedule"][index]["EndDate"]["Month"] = sched->endDate.tm_mon;
+        jsonfile["schedule"][index]["EndDate"]["Day"] = sched->endDate.tm_mday;
+        jsonfile["schedule"][index]["EndDate"]["YearDay"] = sched->endDate.tm_yday;
+        jsonfile["schedule"][index]["ProgramID"] = sched->programID;
+        jsonfile["schedule"][index]["Script"] = utf8_encode(sched->sScript);
+        jsonfile["schedule"][index]["Executable"] = utf8_encode(sched->sScriptExecutablePath);
+        index++;
     }
 #endif
 
@@ -710,6 +852,18 @@ bool saveSchedule(const char* sFilename)
         jsonfile["scripts"][script->index]["pixile_location"] = utf8_encode(script->pixile_location);
     }
 #endif
+    #ifdef AUDIO_TWEEKER
+        int index = 0;
+        for (const auto audioTime : g_vecAudioTimes)
+        {
+            jsonfile["audio_times"][index]["start_hour"] = audioTime.start_hour;
+            jsonfile["audio_times"][index]["start_minute"] = audioTime.start_minute;
+            jsonfile["audio_times"][index]["end_hour"] = audioTime.end_hour;
+            jsonfile["audio_times"][index]["end_minute"] = audioTime.end_mintute;
+            jsonfile["audio_times"][index]["percentage"] = audioTime.percentage;
+            index++;
+        }
+    #endif
     std::string fileName = sFilename;
     outfile.open(sFilename, std::ios::out | std::ios::trunc);
 
@@ -772,6 +926,10 @@ bool IsValidDayOfWeek()
 }
 
 bool isDateBetween(tm* time, tm* start, tm* end) {
+    // if end time is earlier than the start time, then it is a new day
+    if(end->tm_hour < start->tm_hour) {
+        end->tm_yday += 1;
+    }
     if (time->tm_year < start->tm_year || time->tm_year > end->tm_year) {
         return false;
     }
@@ -783,10 +941,41 @@ bool isDateBetween(tm* time, tm* start, tm* end) {
 
     return true;
 }
+bool isTimeInRange(tm* time, int _sh, int _sm, int _eh, int _em)
+{
+    if (time->tm_hour < _sh || time->tm_hour > _eh) {
+        return false;
+    }
+    if (time->tm_hour == _sh) {
+        if (time->tm_min < _sm) {
+            return false;
+        }
+    }
 
-bool isTimeBetween(tm* time, int cur_start_hour, int cur_start_minute, int cur_end_hour, int cur_end_minute) {
+    if (time->tm_hour == _eh) {
+        if (time->tm_min > _em) {
+            return false;
+        }
+    }
 
+    return true;
+}bool isTimeBetween(tm* time, int cur_start_hour, int cur_start_minute, int cur_end_hour, int cur_end_minute)
+{
+#ifdef CSL
+    if (!IsValidDayOfWeek())
+        return false;
+#endif
 
+    // Check if end time is smaller than start time (crosses midnight)
+    if (cur_end_hour < cur_start_hour || (cur_end_hour == cur_start_hour && cur_end_minute < cur_start_minute)) {
+        if ((time->tm_hour > cur_start_hour || (time->tm_hour == cur_start_hour && time->tm_min >= cur_start_minute)) ||
+            (time->tm_hour < cur_end_hour || (time->tm_hour == cur_end_hour && time->tm_min <= cur_end_minute))) {
+            return true;
+        }
+        return false;
+    }
+
+    // Normal range check
     if (time->tm_hour < cur_start_hour || time->tm_hour > cur_end_hour) {
         return false;
     }
@@ -794,19 +983,14 @@ bool isTimeBetween(tm* time, int cur_start_hour, int cur_start_minute, int cur_e
         if (time->tm_min < cur_start_minute) {
             return false;
         }
-
     }
-
     if (time->tm_hour == cur_end_hour) {
         if (time->tm_min > cur_end_minute) {
             return false;
         }
-
     }
-
     return true;
 }
-
 EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
 {
     EPS status = PIXILE_STATUS_OFF;
@@ -821,7 +1005,7 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
     if (!IsValidDayOfWeek())
         validDay= false;
 #endif
-
+#ifdef GOOGLE
     if (scheduleItem == -1)
         inTime = isTimeBetween(localTime,start_hour, start_minute, end_hour, end_minute);
     else
@@ -832,6 +1016,9 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
             g_vecSchedule[scheduleItem]->end_minute);
         validDay = true;
     }
+#else
+    inTime = isTimeBetween(localTime, start_hour, start_minute, end_hour, end_minute);
+#endif
     if (inTime && validDay)
     {
 
@@ -866,6 +1053,24 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
         else
         {
             status = PIXILE_STATUS_OFF;
+        }
+
+        if (client_pid != 0)
+        {
+            pid_t pid;
+            int pud_status;
+            pid = waitpid(client_pid, &pud_status, WNOHANG);
+            
+            if (pid == -1)
+            {
+                status - PIXILE_STATUS_OFF;
+                
+                client_pid = 0;
+            }
+        }
+        else
+        {
+            //status = PIXILE_STATUS_OFF;
         }
 
 #endif
@@ -1026,7 +1231,7 @@ void createScheduleItem(SItemSchedule* item)
     ImGui::PushID(item->index);
     std::string node_name;
 #ifndef GOOGLE
-    node_name.append(bHighlight ? "* " : "").append(content_item_names[item->programID]);
+    node_name.append(bHighlight ? "* " : "").append(content_items[item->programID].name);
 #else
     node_name.append(bHighlight ? "* " : "");
 #endif//node_name.append(std::to_string(item->index));
@@ -1047,31 +1252,35 @@ void createScheduleItem(SItemSchedule* item)
     bool node_open = ImGui::TreeNodeEx(node_name.c_str(), ImGuiSelectableFlags_SpanAllColumns);
     if (node_open)
     {
+        
+    
 #ifndef MUTLIPLE_SCRIPTS
 
         ImGui::SetNextItemWidth(180);
         if (ImGui::DateChooser("Scheduled Start Date", item->startDate, "%b %d %Y"))
         {
             // do something.
+            std::sort(g_vecSchedule.begin(), g_vecSchedule.end(), compareByStartDate);
         }
 
         ImGui::SetNextItemWidth(180);
         if (ImGui::DateChooser("Scheduled End Date", item->endDate, "%b %d %Y"))
         {
             // do something.
+            std::sort(g_vecSchedule.begin(), g_vecSchedule.end(), compareByStartDate);
         }
 
 
 
         ImGui::SetNextItemWidth(180);
 #ifdef WELLESLEY
-        if (ImGui::BeginCombo("Program", content_item_names[item->programID]))
+        if (ImGui::BeginCombo("Program", content_items[item->programID].name.c_str()))
         {
             for (int pr = 0; pr < 19; pr++)
             {
                 const bool is_selected = (item->programID == pr);
 
-                if (ImGui::Selectable(content_item_names[pr], &is_selected))
+                if (ImGui::Selectable(content_items[pr].name.c_str(), &is_selected))
                 {
                     //current_hour_idx = pr;
                     item->programID = (uint8_t)pr;
@@ -1081,7 +1290,17 @@ void createScheduleItem(SItemSchedule* item)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
+
         }
+
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
+        if (ImGui::Button("Delete Item"))
+        {
+            item->deleteMe = true;
+        }
+        ImGui::PopStyleColor(3);
 #endif
 #ifdef GOOGLE
         ImGui::Text("Staring Time"); ImGui::SameLine();
@@ -1223,6 +1442,92 @@ void AddScheduleItem(bool bAddItem, bool bValidate)
     {
     }
 }
+#ifdef AUDIO_TWEEKER
+void AddAudioItem(void)
+{
+    SAudioTime audioTime;
+    
+    audioTime.start_hour = 8;
+    audioTime.start_minute = 0;
+    audioTime.end_hour = 20;
+    audioTime.end_mintute = 0;
+    audioTime.percentage = 75;
+    g_vecAudioTimes.push_back(audioTime);
+
+}
+
+void createAudioItem(SAudioTime& audio_time, int currentVolume)
+{
+    ImGui::PushID(&audio_time);
+    std::string node_name;
+    const time_t currentTime = time(0);
+        tm* localTime = new tm();
+        localtime_s(localTime, &currentTime);
+        if(isTimeInRange(localTime, audio_time.start_hour, audio_time.start_minute, audio_time.end_hour, audio_time.end_mintute) )
+        {
+            node_name.append("* ");
+            if( currentVolume != audio_time.percentage)
+            {
+                std::string sCommand = "amixer -D pulse sset Master " + std::to_string(audio_time.percentage) + "%";
+                system(sCommand.c_str());
+                currentVolume = audio_time.percentage;
+            }
+        }
+        delete localTime;
+    node_name.append("Audio Time: ");
+    node_name.append(std::to_string(audio_time.start_hour));
+    node_name.append(":");
+    node_name.append(std::to_string(audio_time.start_minute));
+    node_name.append(" - ");
+    node_name.append(std::to_string(audio_time.end_hour));
+    node_name.append(":");
+    node_name.append(std::to_string(audio_time.end_mintute));
+    node_name.append(" - ");
+    node_name.append(std::to_string(audio_time.percentage));
+    int index = (int)&audio_time;
+    node_name.append("###").append(std::to_string(index));
+    bool node_open = ImGui::TreeNodeEx(node_name.c_str(), ImGuiSelectableFlags_SpanAllColumns);
+    if (node_open)
+    {
+        ImGui::SetNextItemWidth(180);
+        if (ImGui::SliderInt("Start Hour", &audio_time.start_hour, 0, 23))
+        {
+            // do something.
+        }
+
+        ImGui::SetNextItemWidth(180);
+        if (ImGui::SliderInt("Start Minute", &audio_time.start_minute, 0, 59))
+        {
+            // do something.
+        }
+
+        ImGui::SetNextItemWidth(180);
+        if (ImGui::SliderInt("End Hour", &audio_time.end_hour, 0, 23))
+        {
+            // do something.
+        }
+
+        ImGui::SetNextItemWidth(180);
+        if (ImGui::SliderInt("End Minute", &audio_time.end_mintute, 0, 59))
+        {
+            // do something.
+        }
+
+        ImGui::SetNextItemWidth(180);
+        if (ImGui::SliderInt("Percentage", &audio_time.percentage, 0, 100))
+        {
+            // do something.
+        }
+
+        ImGui::TreePop();
+
+    }
+
+    ImGui::PopID();
+
+}
+
+#endif
 
 void DrawMainGUI()
 {
@@ -1233,19 +1538,18 @@ void DrawMainGUI()
     {
         SetCurrentProgram(item);
     }
-    if (lastItem != item)
+    if (lastItem != item )
     {
-        if (item >= 12)
+        if (lastItem != -1 || item != -1)
         {
             killPlayer();
         }
-        else
+#ifdef WELLESLEY
+        else if(content_items[item].scriptName != content_items[lastItem].scriptName)
         {
-            if (lastItem >= 12)
-            {
-                killPlayer();
-            }
+            killPlayer();
         }
+#endif
     }
     lastItem = item;
 #ifdef IMGUI_HAS_VIEWPORT
@@ -1318,7 +1622,7 @@ void DrawMainGUI()
 #ifdef WELLESLEY
     ImGui::Text("Current Scheduled Content: ");
     ImGui::SameLine();
-    ImGui::Text(content_item_names[item]);
+    ImGui::Text(content_items[item].name.c_str());
 #endif
 #endif
 
@@ -1372,12 +1676,26 @@ void DrawMainGUI()
 
 #endif //  WELLESLEY
 
+#ifdef AUDIO_TWEEKER
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(32, 0, 128, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(32, 0, 200, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(32, 0, 64, 255));
 
+    bool bAddAudioTime = ImGui::Button("+ Add Audio Time");
+    ImGui::PopStyleColor(3);
+#endif
 
     if (bLoadSchedule)
     {
 #ifdef USE_HARD_PATHS
-        loadSchedule("C:\\Content\\schedule.lsc");
+        
+        
+#ifdef _WIN32
+    loadSchedule("C:\\Content\\Schedule.lsc");
+#else
+    loadSchedule("/home/pi/Schedule.lsc");
+#endif
 #else
         std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
         open_file = std::make_shared<pfd::open_file>("Choose file", "C:\\", filters);
@@ -1388,7 +1706,12 @@ void DrawMainGUI()
     if (bSaveSchedule)
     {
 #ifdef USE_HARD_PATHS
-        saveSchedule("C:\\Content\\schedule.lsc");
+
+#ifdef _WIN32
+    saveSchedule("C:\\Content\\Schedule.lsc");
+#else
+    saveSchedule("/home/pi/Schedule.lsc");
+#endif
 #else
         std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
         save_file = std::make_shared<pfd::save_file>("Choose file", "C:\\", filters);
@@ -1402,7 +1725,7 @@ void DrawMainGUI()
     {
         createScheduleItem(sched);
     }
-    // Lambda function to define the condition
+#// Lambda function to define the condition
     auto condition = [](SItemSchedule* x) { return x->deleteMe; };
 
     // Use remove_if to move elements satisfying the condition to the end of the vector
@@ -1414,6 +1737,54 @@ void DrawMainGUI()
 #ifdef MUTLIPLE_SCRIPTS
     createMultiScriptItem();
 #endif
+
+#ifdef AUDIO_TWEEKER
+    if (bAddAudioTime)
+    {
+        AddAudioItem();
+    }
+    int currentVolume =-1;
+     FILE* pipe = popen("amixer -D pulse sget Master | grep 'Front Left:' | awk -F'[][]' '{ print $2 }'", "r");
+    if (pipe) {
+     
+
+        char buffer[128];
+        std::string result = "";
+        while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != NULL)
+                result += buffer;
+        }
+        pclose(pipe);
+
+    
+        // Extract volume percentage from the output
+        std::istringstream iss(result);
+        std::string volume_str;
+        while (iss >> volume_str) {
+            if (volume_str.back() == '%') {
+                volume_str.pop_back(); // Remove the '%' character
+                break;
+            }
+        }
+
+        int volume = std::stoi(volume_str);
+     //   std::string volume_str = result.substr(pos - 2, 2);
+     //   int volume = std::stoi(volume_str);
+        ImGui::Text("Current Volume: %d", volume);
+        currentVolume = volume;
+    }
+    //std::cout << "Current volume: " << volume << "%" << std::endl;
+    
+    ImGui::BeginChildFrame(3, ImGui::GetContentRegionAvail());
+    for (auto& sched : g_vecAudioTimes)
+    {
+        createAudioItem(sched,currentVolume);
+        
+    }
+
+    ImGui::EndChildFrame();
+#endif
+
 #ifdef CSL
     static bool bShowingContent = true;
     static bool bPausedContent = false;
@@ -1530,6 +1901,10 @@ int main(int, char**)
     loadSchedule("C:\\Content\\Schedule.lsc");
 #else
     loadSchedule("/home/pi/Schedule.lsc");
+#endif
+
+#ifdef WELLESLEY
+    content_items = loadContentItemDataFromJson("C:\\Content\\scripts.json");
 #endif
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
