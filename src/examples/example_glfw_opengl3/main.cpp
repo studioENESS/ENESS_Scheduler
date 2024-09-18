@@ -1046,7 +1046,7 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
             }
             if (pid == -1)
             {
-                status - PIXILE_STATUS_OFF;
+                status = PIXILE_STATUS_OFF;
                 last_pid = 0;
             }
         }
@@ -1063,14 +1063,14 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
             
             if (pid == -1)
             {
-                status - PIXILE_STATUS_OFF;
+                status = PIXILE_STATUS_OFF;
                 
                 client_pid = 0;
             }
         }
         else
         {
-            //status = PIXILE_STATUS_OFF;
+            status = PIXILE_STATUS_OFF;
         }
 
 #endif
