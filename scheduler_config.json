@@ -1,0 +1,31 @@
+{
+  "tasks": [
+    {
+      "name": "Task",
+      "task_type": 0,
+      "path": "Scheduler.exe",
+      "time": "12:00",
+      "days_of_week": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "start_date": "",
+      "end_date": "",
+      "enabled": true,
+      "ssh_host": "",
+      "ssh_port": 22,
+      "ssh_username": "",
+      "ssh_password": "",
+      "ssh_key_path": "",
+      "timeout": 60,
+      "retry_count": 0,
+      "notify_on_failure": true,
+      "log_output": true
+    }
+  ]
+}

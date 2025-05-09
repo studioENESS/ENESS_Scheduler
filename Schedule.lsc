@@ -1,0 +1,133 @@
+{
+    "client_filename": "-s /home/pi/2334-Iwagumi_Rocks/pixile_sketch/slave/slave_rocks.pxl",
+    "content_filename": "-s /home/pi/2334-Iwagumi_Rocks/pixile_sketch/Pack/master.pxl",
+    "pixile_location": "C:\\Content\\Release\\",
+    "schedule": [
+        {
+            "EndDate": {
+                "Day": 1,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 152
+            },
+            "StartDate": {
+                "Day": 1,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 152
+            },
+            "index": 0,
+            "time": {
+                "end": {
+                    "hour": 0,
+                    "minute": 30
+                },
+                "start": {
+                    "hour": 17,
+                    "minute": 30
+                }
+            }
+        },
+        {
+            "EndDate": {
+                "Day": 8,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 159
+            },
+            "StartDate": {
+                "Day": 7,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 158
+            },
+            "index": 1,
+            "time": {
+                "end": {
+                    "hour": 0,
+                    "minute": 30
+                },
+                "start": {
+                    "hour": 17,
+                    "minute": 30
+                }
+            }
+        },
+        {
+            "EndDate": {
+                "Day": 15,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 166
+            },
+            "StartDate": {
+                "Day": 14,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 165
+            },
+            "index": 2,
+            "time": {
+                "end": {
+                    "hour": 0,
+                    "minute": 30
+                },
+                "start": {
+                    "hour": 17,
+                    "minute": 30
+                }
+            }
+        },
+        {
+            "EndDate": {
+                "Day": 22,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 173
+            },
+            "StartDate": {
+                "Day": 21,
+                "Month": 5,
+                "Year": 124,
+                "YearDay": 172
+            },
+            "index": 3,
+            "time": {
+                "end": {
+                    "hour": 0,
+                    "minute": 30
+                },
+                "start": {
+                    "hour": 17,
+                    "minute": 30
+                }
+            }
+        }
+    ],
+    "screen": {
+        "h": 768,
+        "w": 1024,
+        "x": 0,
+        "y": 0
+    },
+    "time": {
+        "day": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+        ],
+        "end": {
+            "hour": 23,
+            "minute": 30
+        },
+        "start": {
+            "hour": 17,
+            "minute": 30
+        }
+    },
+    "use_mouse": false
+}
