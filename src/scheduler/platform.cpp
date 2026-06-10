@@ -1,0 +1,374 @@
+#include "platform.h"
+
+#include <cstdio>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
+#include "nlohmann/json.hpp"
+
+#include "time_logic.h"
+#include "features/feature_choose_days.h"
+#include "features/feature_csl.h"
+#include "features/feature_google.h"
+#include "features/feature_wellesley.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#include <tlhelp32.h>
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+static pid_t last_pid = 0;
+static pid_t client_pid = 0;
+#endif
+
+#ifdef _WIN32
+
+// Convert a wide Unicode string to an UTF8 string
+std::string utf8_encode(const std::wstring& wstr)
+{
+    if (wstr.empty()) return std::string();
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    return strTo;
+}
+
+// Convert an UTF8 string to a wide Unicode String
+std::wstring utf8_decode(const std::string& str)
+{
+    if (str.empty()) return std::wstring();
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+    return wstrTo;
+}
+#else
+#include <codecvt>
+#include <locale>
+std::wstring utf8_decode(const std::string& str)
+{
+    typedef std::codecvt_utf8<wchar_t> convert_typeX;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.from_bytes(str);
+}
+
+std::string utf8_encode(const std::wstring& str)
+{
+    typedef std::codecvt_utf8<wchar_t> convert_typeX;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.to_bytes(str);
+
+}
+
+#endif
+
+void killProcessByName(const wchar_t* filename)
+{
+#ifdef _WIN32
+    HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPALL, NULL);
+    PROCESSENTRY32 pEntry;
+    pEntry.dwSize = sizeof(pEntry);
+    BOOL hRes = Process32First(hSnapShot, &pEntry);
+    while (hRes)
+    {
+        if (_wcsicmp(pEntry.szExeFile, filename) == 0)
+        {
+            HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, 0,
+                (DWORD)pEntry.th32ProcessID);
+            if (hProcess != NULL)
+            {
+                TerminateProcess(hProcess, 9);
+                CloseHandle(hProcess);
+            }
+        }
+        hRes = Process32Next(hSnapShot, &pEntry);
+    }
+    CloseHandle(hSnapShot);
+#else
+
+#endif
+}
+
+bool killPlayer()
+{
+    bool bResult = false;
+#ifdef _WIN32
+    killProcessByName(L"Player.exe");
+    killProcessByName(L"Pixile.exe");
+#else
+    if (last_pid != 0)
+    {
+
+        kill(last_pid, 1);
+        last_pid = 0;
+    }
+    if (client_pid != 0)
+    {
+        kill(client_pid, 1);
+        client_pid = 0;
+    }
+#endif
+    return bResult;
+}
+
+void SetCurrentProgram(uint32_t programID, uint32_t paused)
+{
+    std::fstream fs;
+    std::filesystem::path sptPath = orig_content_filename;
+    if (Wellesley_ResolveContentScript(programID))
+        sptPath = content_filename;
+
+#ifdef  _WIN32
+    std::wstring cfgFile = (sptPath.parent_path().c_str());
+    cfgFile.append(L"\\config.json");
+#else
+    std::string cfgFile = (sptPath.parent_path().c_str());
+    cfgFile.append("\\config.json");
+#endif // _WIN32
+    std::ifstream file;
+    file.open(cfgFile);
+    if (file.is_open())
+    {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        nlohmann::json jsonfile;
+        jsonfile = nlohmann::json::parse(buffer);
+        file.close();
+        jsonfile["StateCollections"][0]["Current Selected State"] = programID;
+        CSL_ApplyPausedState(jsonfile, paused);
+        std::ofstream outfile;
+        outfile.open(cfgFile, std::ios::out | std::ios::trunc);
+
+        outfile << jsonfile.dump(4);
+        outfile.close();
+    }
+}
+
+bool startPlayer(uint32_t programID)
+{
+#ifdef _WIN32
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    SetCurrentProgram(programID);
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    std::wstring cmdLine = pixile_location;
+    if (g_bUseAlternatePlayer)
+    {
+        cmdLine = alt_pixile_location;
+
+    }
+
+    cmdLine.append(L"player.exe");
+
+    cmdLine.append(L" -x ");
+    cmdLine.append(std::to_wstring(screeninfo.x));
+    cmdLine.append(L" -y ");
+    cmdLine.append(std::to_wstring(screeninfo.y));
+    cmdLine.append(L" -w ");
+    cmdLine.append(std::to_wstring(screeninfo.w));
+    cmdLine.append(L" -h ");
+    cmdLine.append(std::to_wstring(screeninfo.h));
+    cmdLine.append(L" -m ");
+    cmdLine.append(std::to_wstring(g_bUseMouse ? 2 : 0));
+    cmdLine.append(L" \"");
+    cmdLine.append(content_filename);
+    cmdLine.append(L"\"");
+    const std::wstring wcmd = cmdLine;
+    LPWSTR cmd = cmdLine.data();
+
+    // Start the child process.
+    if (!CreateProcess(NULL,   // No module name (use command line)
+        cmd,        // Command line
+        NULL,           // Process handle not inheritable
+        NULL,           // Thread handle not inheritable
+        FALSE,          // Set handle inheritance to FALSE
+        0,              // No creation flags
+        NULL,           // Use parent's environment block
+        g_bUseAlternatePlayer ? alt_pixile_location.c_str() : pixile_location.c_str(),           // Use parent's starting directory
+        &si,            // Pointer to STARTUPINFO structure
+        &pi)           // Pointer to PROCESS_INFORMATION structure
+        )
+    {
+        printf("CreateProcess failed (%d).\n", GetLastError());
+        return false;
+    }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+#else
+    int y, status;
+    pid_t pid;
+    if (last_pid == 0)
+    {
+        printf("script: %s", utf8_encode(content_filename).c_str());
+
+        pid = fork();
+        sleep(1);
+        if (pid < 0) {
+
+            /* This is an error */
+            perror("fork()");
+            return 1;
+
+        }
+        else if (pid == 0) {
+
+            /* This is the CHILD */
+            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", utf8_encode(content_filename).c_str(), (char*)0);
+
+            perror("execlp()");
+
+            /* An exec does NOT return. */
+            /* The next lines won't execute unless there's an error with exec. */
+
+            printf("Child %u, parent %u\n", getpid(), getppid());
+            exit(0);
+
+        }
+        else {
+            /* This is the PARENT */
+            printf("Parent %u says child PID is %u\n", getpid(), pid);
+
+            last_pid = pid;
+        }
+    }
+    else
+    {
+    }
+
+    if (client_pid == 0 && client_filename.size() != 0)
+    {
+        printf("script: %s", utf8_encode(client_filename).c_str());
+
+        pid = fork();
+        sleep(1);
+        if (pid < 0) {
+
+            /* This is an error */
+            perror("fork()");
+            return 1;
+
+        }
+        else if (pid == 0) {
+
+            /* This is the CHILD */
+            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", utf8_encode(client_filename).c_str(), (char*)0);
+
+            perror("execlp()");
+
+            /* An exec does NOT return. */
+            /* The next lines won't execute unless there's an error with exec. */
+
+            printf("Child %u, parent %u\n", getpid(), getppid());
+            exit(0);
+
+        }
+        else {
+            /* This is the PARENT */
+            printf("Parent %u says child PID is %u\n", getpid(), pid);
+
+            client_pid = pid;
+        }
+    }
+    else
+    {
+    }
+#endif
+    return true;
+}
+
+EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
+{
+    EPS status = PIXILE_STATUS_OFF;
+
+    const time_t currentTime = time(0);
+    tm* localTime = new tm();
+    localtime_s(localTime, &currentTime);
+    bool inTime = false;
+    bool validDay = ChooseDays_IsValidDay(start_hour, start_minute, end_hour, end_minute);
+
+    if (!Google_CheckScheduleItemTime(localTime, scheduleItem, inTime, validDay))
+        inTime = isTimeBetween(localTime, start_hour, start_minute, end_hour, end_minute);
+
+    if (inTime && validDay)
+    {
+
+#ifdef _WIN32
+        PROCESSENTRY32 entry;
+        entry.dwSize = sizeof(PROCESSENTRY32);
+
+        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+
+        if (Process32First(snapshot, &entry))
+            while (Process32Next(snapshot, &entry))
+                if (!_wcsicmp(entry.szExeFile, processName))
+                    status = PIXILE_STATUS_RUNNING;
+
+        CloseHandle(snapshot);
+#else
+
+        if (last_pid != 0)
+        {
+            pid_t pid;
+            int pud_status;
+            pid = waitpid(last_pid, &pud_status, WNOHANG);
+            if (status == 0) {
+                status = PIXILE_STATUS_RUNNING;
+            }
+            if (pid == -1)
+            {
+                status = PIXILE_STATUS_OFF;
+                last_pid = 0;
+            }
+        }
+        else
+        {
+            status = PIXILE_STATUS_OFF;
+        }
+
+        if (client_pid != 0)
+        {
+            pid_t pid;
+            int pud_status;
+            pid = waitpid(client_pid, &pud_status, WNOHANG);
+
+            if (pid == -1)
+            {
+                status = PIXILE_STATUS_OFF;
+
+                client_pid = 0;
+            }
+        }
+        else
+        {
+            status = PIXILE_STATUS_OFF;
+        }
+
+#endif
+
+        if (localTime)
+            delete localTime;
+    }
+    else {
+        if (localTime)
+            delete localTime;
+        return PIXILE_STATUS_NOTSCHEDULED;
+    }
+
+    return status;
+
+}

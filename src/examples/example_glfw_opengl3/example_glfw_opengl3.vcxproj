@@ -90,11 +90,17 @@
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
   </PropertyGroup>
+  <!-- Scheduler feature flags. Override from the command line with
+       msbuild /p:SchedulerFeatures="FEATURE_GOOGLE;FEATURE_CHOOSE_DAYS;..." -->
+  <PropertyGroup Label="SchedulerFeatures">
+    <SchedulerFeatures Condition="'$(SchedulerFeatures)' == ''">FEATURE_CHOOSE_DAYS;FEATURE_KINETIC;USE_HARD_PATHS;AUTO_RUNNER_ONLY</SchedulerFeatures>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>$(SchedulerFeatures);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -107,8 +113,9 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>$(SchedulerFeatures);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc11</LanguageStandard_C>
     </ClCompile>
@@ -123,10 +130,11 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>$(SchedulerFeatures);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
@@ -143,10 +151,11 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>$(SchedulerFeatures);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..;..\..\backends;..\libs\glfw\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -170,7 +179,21 @@
     <ClCompile Include="..\..\backends\imgui_impl_glfw.cpp" />
     <ClCompile Include="..\..\backends\imgui_impl_opengl3.cpp" />
     <ClCompile Include="imguidatechooser.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="..\..\scheduler\main.cpp" />
+    <ClCompile Include="..\..\scheduler\app_state.cpp" />
+    <ClCompile Include="..\..\scheduler\platform.cpp" />
+    <ClCompile Include="..\..\scheduler\time_logic.cpp" />
+    <ClCompile Include="..\..\scheduler\schedule_io.cpp" />
+    <ClCompile Include="..\..\scheduler\ui_main.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_audio.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_choose_days.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_csl.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_google.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_kinetic.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_multiscripts.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_sleep_periods.cpp" />
+    <ClCompile Include="..\..\scheduler\features\feature_wellesley.cpp" />
+    <ClCompile Include="..\..\scheduler\features\schedule_list_common.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\imconfig.h" />
@@ -181,6 +204,20 @@
     <ClInclude Include="..\..\backends\imgui_impl_opengl3_loader.h" />
     <ClInclude Include="imguidatechooser.h" />
     <ClInclude Include="portable-file-dialogs.h" />
+    <ClInclude Include="..\..\scheduler\app_state.h" />
+    <ClInclude Include="..\..\scheduler\platform.h" />
+    <ClInclude Include="..\..\scheduler\time_logic.h" />
+    <ClInclude Include="..\..\scheduler\schedule_io.h" />
+    <ClInclude Include="..\..\scheduler\ui_main.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_audio.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_choose_days.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_csl.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_google.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_kinetic.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_multiscripts.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_sleep_periods.h" />
+    <ClInclude Include="..\..\scheduler\features\feature_wellesley.h" />
+    <ClInclude Include="..\..\scheduler\features\schedule_list_common.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\misc\debuggers\imgui.natvis" />

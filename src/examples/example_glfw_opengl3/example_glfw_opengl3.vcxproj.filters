@@ -8,10 +8,58 @@
       <UniqueIdentifier>{f18ab499-84e1-499f-8eff-9754361e0e52}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="scheduler">
+      <UniqueIdentifier>{a3c2f7d1-5b88-4f0e-9c41-7e2d93a6b510}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scheduler\features">
+      <UniqueIdentifier>{b7e91c44-2d36-4a8f-8e12-fd80c5a9e621}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>sources</Filter>
+    <ClCompile Include="..\..\scheduler\main.cpp">
+      <Filter>scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\app_state.cpp">
+      <Filter>scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\platform.cpp">
+      <Filter>scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\time_logic.cpp">
+      <Filter>scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\schedule_io.cpp">
+      <Filter>scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\ui_main.cpp">
+      <Filter>scheduler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_audio.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_choose_days.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_csl.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_google.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_kinetic.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_multiscripts.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_sleep_periods.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_wellesley.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\schedule_list_common.cpp">
+      <Filter>scheduler\features</Filter>
     </ClCompile>
     <ClCompile Include="..\..\imgui.cpp">
       <Filter>imgui</Filter>
@@ -62,6 +110,48 @@
     </ClInclude>
     <ClInclude Include="portable-file-dialogs.h">
       <Filter>sources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\app_state.h">
+      <Filter>scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\platform.h">
+      <Filter>scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\time_logic.h">
+      <Filter>scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\schedule_io.h">
+      <Filter>scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\ui_main.h">
+      <Filter>scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_audio.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_choose_days.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_csl.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_google.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_kinetic.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_multiscripts.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_sleep_periods.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_wellesley.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\schedule_list_common.h">
+      <Filter>scheduler\features</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
