@@ -256,8 +256,20 @@ bool startPlayer(uint32_t programID)
             return;
         }
         if (pid == 0) {
-            execl(playerPath.c_str(), "player", "-w 800", "-h 600",
-                  utf8_encode(scriptPath).c_str(), (char*)0);
+            const std::string script = utf8_encode(scriptPath);
+            const std::string sx = std::to_string(screeninfo.x);
+            const std::string sy = std::to_string(screeninfo.y);
+            const std::string sw = std::to_string(screeninfo.w);
+            const std::string sh = std::to_string(screeninfo.h);
+            const std::string sm = std::to_string(g_bUseMouse ? 2 : 0);
+            execl(playerPath.c_str(), "player",
+                  "-x", sx.c_str(),
+                  "-y", sy.c_str(),
+                  "-w", sw.c_str(),
+                  "-h", sh.c_str(),
+                  "-m", sm.c_str(),
+                  "-s", script.c_str(),
+                  (char*)0);
             perror("execl()");
             exit(0);
         }
