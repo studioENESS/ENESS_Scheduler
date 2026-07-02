@@ -1,6 +1,7 @@
 #include "platform.h"
 
 #include <cstdio>
+#include <cctype>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -26,6 +27,30 @@
 #include <signal.h>
 static pid_t last_pid = 0;
 static pid_t client_pid = 0;
+
+static std::string TrimAscii(const std::string& input)
+{
+    size_t start = 0;
+    while (start < input.size() && std::isspace((unsigned char)input[start]))
+        ++start;
+    size_t end = input.size();
+    while (end > start && std::isspace((unsigned char)input[end - 1]))
+        --end;
+    return input.substr(start, end - start);
+}
+
+// Pi schedules sometimes store "-s /path/to/script.pxl" in content_filename.
+static std::string LinuxScriptPathForPlayer(const std::wstring& scriptPath)
+{
+    std::string path = TrimAscii(utf8_encode(scriptPath));
+    if (path.size() >= 2 && path[0] == '-' && path[1] == 's' &&
+        (path.size() == 2 || std::isspace((unsigned char)path[2])))
+    {
+        path = TrimAscii(path.substr(2));
+    }
+    return path;
+}
+
 #endif
 
 #ifdef _WIN32
@@ -132,7 +157,7 @@ static std::string ConfigJsonPathForScript(const std::wstring& scriptPath)
     cfgPath += L"\\config.json";
     return utf8_encode(cfgPath);
 #else
-    std::string cfgPath = utf8_encode(scriptPath);
+    std::string cfgPath = LinuxScriptPathForPlayer(scriptPath);
     const auto pos = cfgPath.find_last_of('/');
     if (pos != std::string::npos)
         cfgPath.resize(pos);
@@ -248,7 +273,11 @@ bool startPlayer(uint32_t programID)
         if (trackedPid != 0 || scriptPath.empty())
             return;
 
-        printf("script: %s\n", utf8_encode(scriptPath).c_str());
+        const std::string script = LinuxScriptPathForPlayer(scriptPath);
+        if (script.empty())
+            return;
+
+        printf("script: %s\n", script.c_str());
         pid = fork();
         sleep(1);
         if (pid < 0) {
@@ -256,7 +285,6 @@ bool startPlayer(uint32_t programID)
             return;
         }
         if (pid == 0) {
-            const std::string script = utf8_encode(scriptPath);
             const std::string sx = std::to_string(screeninfo.x);
             const std::string sy = std::to_string(screeninfo.y);
             const std::string sw = std::to_string(screeninfo.w);
