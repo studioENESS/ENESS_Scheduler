@@ -224,19 +224,31 @@ bool startPlayer(uint32_t programID)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 #else
+    auto linuxPlayerPath = []() -> std::string {
+        constexpr const char* kDefaultPlayer = "/home/pi/pixile/player";
+        if (pixile_location.empty())
+            return kDefaultPlayer;
+
+        const std::string loc = utf8_encode(pixile_location);
+        if (!loc.empty() && loc.front() == '/')
+        {
+            std::string path = loc;
+            if (path.back() != '/')
+                path += '/';
+            path += "player";
+            return path;
+        }
+        return kDefaultPlayer;
+    };
+
+    const std::string playerPath = linuxPlayerPath();
     pid_t pid;
-    std::wstring playerDir = pixile_location;
-    if (playerDir.empty())
-        playerDir = L"/home/pi/pixile/";
-    if (playerDir.back() != L'/' && playerDir.back() != L'\\')
-        playerDir += L"/";
-    const std::string playerPath = utf8_encode(playerDir + L"player");
 
     auto launchPlayer = [&](const std::wstring& scriptPath, pid_t& trackedPid) {
         if (trackedPid != 0 || scriptPath.empty())
             return;
 
-        printf("script: %s", utf8_encode(scriptPath).c_str());
+        printf("script: %s\n", utf8_encode(scriptPath).c_str());
         pid = fork();
         sleep(1);
         if (pid < 0) {
@@ -244,7 +256,7 @@ bool startPlayer(uint32_t programID)
             return;
         }
         if (pid == 0) {
-            execl(playerPath.c_str(), "player", "-w", "800", "-h", "600",
+            execl(playerPath.c_str(), "player", "-w 800", "-h 600",
                   utf8_encode(scriptPath).c_str(), (char*)0);
             perror("execl()");
             exit(0);
