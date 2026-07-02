@@ -19,6 +19,7 @@ struct SItemSchedule
     std::wstring sScript;
     std::wstring sScriptLocation;
     std::wstring sScriptExecutablePath;
+    std::string catalog_id;
     bool deleteMe = false;
 };
 
@@ -62,3 +63,9 @@ extern sScreeninfo screeninfo;
 // Active days of week (Sunday == index 0). Persisted/edited by the
 // CHOOSE_DAYS feature, also consulted by the CSL feature.
 extern bool bDays[7];
+
+// When true, each day uses its own end time from the arrays below instead of
+// the global end_hour/end_minute. Edited by the CHOOSE_DAYS feature.
+extern bool g_bUsePerDayEndTimes;
+extern int end_hour_by_day[7];
+extern int end_minute_by_day[7];

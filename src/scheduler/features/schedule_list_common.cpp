@@ -1,6 +1,6 @@
 #include "schedule_list_common.h"
 
-#if defined(FEATURE_GOOGLE) || defined(FEATURE_WELLESLEY)
+#if defined(FEATURE_GOOGLE) || defined(FEATURE_WELLESLEY) || defined(FEATURE_SCRIPT_LIBRARY)
 
 #include <algorithm>
 #include <ctime>
@@ -11,6 +11,7 @@
 #include "../platform.h"
 #include "../time_logic.h"
 #include "feature_multiscripts.h"
+#include "feature_script_library.h"
 
 void AddScheduleItem(bool bAddItem, bool bValidate)
 {
@@ -21,6 +22,10 @@ void AddScheduleItem(bool bAddItem, bool bValidate)
         ImGui::SetDateToday(&newItem->startDate);
         ImGui::SetDateToday(&newItem->endDate);
         newItem->programID = 0;
+#ifdef FEATURE_SCRIPT_LIBRARY
+        if (!g_scriptCatalog.empty())
+            newItem->catalog_id = g_scriptCatalog[0].id;
+#endif
         g_vecSchedule.push_back(newItem);
     }
 
@@ -124,4 +129,4 @@ void DrawScheduleListUI(const std::function<std::string(SItemSchedule*)>& itemPr
     ImGui::EndChildFrame();
 }
 
-#endif // FEATURE_GOOGLE || FEATURE_WELLESLEY
+#endif // FEATURE_GOOGLE || FEATURE_WELLESLEY || FEATURE_SCRIPT_LIBRARY

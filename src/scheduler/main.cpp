@@ -26,6 +26,7 @@
 #include "ui_main.h"
 #include "features/feature_google.h"
 #include "features/feature_wellesley.h"
+#include "features/feature_script_library.h"
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -73,6 +74,7 @@ int main(int, char**)
     loadSchedule(SCHEDULER_DEFAULT_SCHEDULE_PATH);
 
     Wellesley_Init();
+    ScriptLibrary_Init();
 
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -106,6 +108,7 @@ int main(int, char**)
     int iWHeight = 260;
     iWHeight = Google_AdjustWindowHeight(iWHeight);
     iWHeight = Wellesley_AdjustWindowHeight(iWHeight);
+    iWHeight = ScriptLibrary_AdjustWindowHeight(iWHeight);
 
     GLFWwindow* window = nullptr;
     // Create window with graphics context
@@ -140,6 +143,7 @@ int main(int, char**)
         glfwSwapBuffers(window);
         DoFileDialog_Open();
         DoFileDialog_Save();
+        ScriptLibrary_PollFileDialogs();
 
     }
 

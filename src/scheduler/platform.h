@@ -23,8 +23,10 @@
 
 #ifdef _WIN32
 #define SCHEDULER_DEFAULT_SCHEDULE_PATH "C:\\Content\\Schedule.lsc"
+#define SCHEDULER_SCRIPT_LIBRARY_PATH "C:\\Content\\script_library.json"
 #else
 #define SCHEDULER_DEFAULT_SCHEDULE_PATH "/home/pi/Schedule.lsc"
+#define SCHEDULER_SCRIPT_LIBRARY_PATH "/home/pi/Content/script_library.json"
 #endif
 
 // Convert a wide Unicode string to an UTF8 string

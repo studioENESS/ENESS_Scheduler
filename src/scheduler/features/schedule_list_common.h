@@ -1,7 +1,7 @@
 // Shared schedule-list UI used by the GOOGLE and WELLESLEY features.
 #pragma once
 
-#if defined(FEATURE_GOOGLE) || defined(FEATURE_WELLESLEY)
+#if defined(FEATURE_GOOGLE) || defined(FEATURE_WELLESLEY) || defined(FEATURE_SCRIPT_LIBRARY)
 
 #include <functional>
 #include <string>
@@ -17,4 +17,4 @@ void AddScheduleItem(bool bAddItem, bool bValidate);
 void DrawScheduleListUI(const std::function<std::string(SItemSchedule*)>& itemPrefix,
                         const std::function<void(SItemSchedule*)>& drawItemBody);
 
-#endif // FEATURE_GOOGLE || FEATURE_WELLESLEY
+#endif // FEATURE_GOOGLE || FEATURE_WELLESLEY || FEATURE_SCRIPT_LIBRARY

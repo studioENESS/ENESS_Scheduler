@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\app_state.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\platform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\time_logic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\schedule_io.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\ui_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_audio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_choose_days.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_csl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_google.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_kinetic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_multiscripts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_script_library.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_sleep_periods.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\feature_wellesley.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\scheduler\features\schedule_list_common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\examples\example_glfw_opengl3\imguidatechooser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\imgui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\imgui_draw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\imgui_widgets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\imgui_tables.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\backends\imgui_impl_opengl3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\backends\imgui_impl_glfw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\ENESS_Projects\Eness_Scheduler\src\misc\cpp\imgui_stdlib.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\ENESS_Projects\Eness_Scheduler\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{2F660125-17BD-30BD-9C37-9B2D373C9C4A}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -20,6 +20,9 @@ bool g_bUseMouse = false;
 sScreeninfo screeninfo{ 0,0,1024,768 };
 
 bool bDays[7] = {};
+bool g_bUsePerDayEndTimes = false;
+int end_hour_by_day[7] = { 20, 20, 20, 20, 20, 20, 20 };
+int end_minute_by_day[7] = { 55, 55, 55, 55, 55, 55, 55 };
 
 bool compareByStartDate(const SItemSchedule* a, const SItemSchedule* b) {
     tm a_tm = a->startDate;

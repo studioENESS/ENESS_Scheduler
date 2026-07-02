@@ -14,6 +14,7 @@
 #include "features/feature_multiscripts.h"
 #include "features/feature_sleep_periods.h"
 #include "features/feature_wellesley.h"
+#include "features/feature_script_library.h"
 
 std::shared_ptr<pfd::open_file> open_file;
 std::shared_ptr<pfd::save_file> save_file;
@@ -86,6 +87,7 @@ bool loadSchedule(const char* sFilename)
     MultiScripts_LoadJson(jsonfile);
     Google_LoadSchedule(jsonfile);
     Wellesley_LoadSchedule(jsonfile);
+    ScriptLibrary_LoadSchedule(jsonfile);
     SleepPeriods_LoadJson(jsonfile);
     Audio_LoadJson(jsonfile);
 
@@ -122,6 +124,7 @@ bool saveSchedule(const char* sFilename)
     ChooseDays_SaveJson(jsonfile);
     Google_SaveSchedule(jsonfile);
     Wellesley_SaveSchedule(jsonfile);
+    ScriptLibrary_SaveSchedule(jsonfile);
     MultiScripts_SaveJson(jsonfile);
     Audio_SaveJson(jsonfile);
 

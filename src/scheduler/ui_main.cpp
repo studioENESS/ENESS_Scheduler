@@ -18,6 +18,7 @@
 #include "features/feature_google.h"
 #include "features/feature_multiscripts.h"
 #include "features/feature_wellesley.h"
+#include "features/feature_script_library.h"
 
 static int GetCurrentScheduledItem()
 {
@@ -33,14 +34,18 @@ static int GetCurrentScheduledItem()
         {
             if (localTime)
                 delete localTime;
-            return GoogleFeatureEnabled ? index : item->programID;
+            if (GoogleFeatureEnabled || ScriptLibraryFeatureEnabled)
+                return index;
+            return item->programID;
         }
         index++;
     }
 
     if (localTime)
         delete localTime;
-    return GoogleFeatureEnabled ? -1 : 12;
+    if (GoogleFeatureEnabled || ScriptLibraryFeatureEnabled)
+        return -1;
+    return 12;
 }
 
 
@@ -212,8 +217,21 @@ void StyleColorsPhotoshop()
 void DrawMainGUI()
 {
     static int lastItem = -1;
+    static std::string lastCatalogId;
     static int item = 0;
     item = GetCurrentScheduledItem();
+    if (ScriptLibraryFeatureEnabled && item >= 0 && item < (int)g_vecSchedule.size())
+    {
+        const std::string& catalogId = g_vecSchedule[item]->catalog_id;
+        if (catalogId != lastCatalogId)
+        {
+            if (!lastCatalogId.empty())
+                killPlayer();
+            lastCatalogId = catalogId;
+        }
+        ScriptLibrary_ApplyEntry(catalogId);
+    }
+
     if (item != lastItem)
     {
         SetCurrentProgram(item);
@@ -221,6 +239,10 @@ void DrawMainGUI()
     if (lastItem != item)
     {
         if (lastItem != -1 || item != -1)
+        {
+            killPlayer();
+        }
+        else if (ScriptLibraryFeatureEnabled && ScriptLibrary_ScriptChanged(item, lastItem))
         {
             killPlayer();
         }
@@ -287,7 +309,9 @@ void DrawMainGUI()
         }
     }
 
-    if (MultiScriptsFeatureEnabled)
+    if (ScriptLibraryFeatureEnabled)
+        ScriptLibrary_DrawCurrentContent(item);
+    else if (MultiScriptsFeatureEnabled)
     {
         ImGui::Text("Current Scheduled Content: ");
         ImGui::SameLine();
@@ -300,10 +324,13 @@ void DrawMainGUI()
     ImGui::Text("Staring Time"); ImGui::SameLine();
     createTimeCombo("Scheduled Start Time (Per Day)", start_hour, start_minute);
 
-    ImGui::Text("Ending Time"); ImGui::SameLine();
-    createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
-    if (scheduleCrossesMidnight(start_hour, start_minute, end_hour, end_minute))
-        ImGui::TextDisabled("(end time is the next day)");
+    if (!g_bUsePerDayEndTimes)
+    {
+        ImGui::Text("Ending Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
+        if (scheduleCrossesMidnight(start_hour, start_minute, end_hour, end_minute))
+            ImGui::TextDisabled("(end time is the next day)");
+    }
 
     ChooseDays_DrawUI();
 
@@ -342,8 +369,11 @@ void DrawMainGUI()
 #endif
     }
 
+    ScriptLibrary_DrawUI();
+
     Google_DrawScheduleUI();
     Wellesley_DrawScheduleUI();
+    ScriptLibrary_DrawScheduleUI();
 
     MultiScripts_DrawUI();
 

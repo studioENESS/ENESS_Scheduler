@@ -2,7 +2,6 @@
 
 #include <cstdio>
 #include <ctime>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -121,20 +120,35 @@ bool killPlayer()
     return bResult;
 }
 
+static std::string ConfigJsonPathForScript(const std::wstring& scriptPath)
+{
+#ifdef _WIN32
+    std::wstring cfgPath = scriptPath;
+    const auto pos = cfgPath.find_last_of(L"/\\");
+    if (pos != std::wstring::npos)
+        cfgPath.resize(pos);
+    else
+        cfgPath.clear();
+    cfgPath += L"\\config.json";
+    return utf8_encode(cfgPath);
+#else
+    std::string cfgPath = utf8_encode(scriptPath);
+    const auto pos = cfgPath.find_last_of('/');
+    if (pos != std::string::npos)
+        cfgPath.resize(pos);
+    else
+        cfgPath.clear();
+    cfgPath += "/config.json";
+    return cfgPath;
+#endif
+}
+
 void SetCurrentProgram(uint32_t programID, uint32_t paused)
 {
-    std::fstream fs;
-    std::filesystem::path sptPath = orig_content_filename;
-    if (Wellesley_ResolveContentScript(programID))
-        sptPath = content_filename;
+    if (WellesleyFeatureEnabled)
+        Wellesley_ResolveContentScript(programID);
 
-#ifdef  _WIN32
-    std::wstring cfgFile = (sptPath.parent_path().c_str());
-    cfgFile.append(L"\\config.json");
-#else
-    std::string cfgFile = (sptPath.parent_path().c_str());
-    cfgFile.append("\\config.json");
-#endif // _WIN32
+    const std::string cfgFile = ConfigJsonPathForScript(content_filename);
     std::ifstream file;
     file.open(cfgFile);
     if (file.is_open())
@@ -210,83 +224,36 @@ bool startPlayer(uint32_t programID)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 #else
-    int y, status;
     pid_t pid;
-    if (last_pid == 0)
-    {
-        printf("script: %s", utf8_encode(content_filename).c_str());
+    std::wstring playerDir = pixile_location;
+    if (playerDir.empty())
+        playerDir = L"/home/pi/pixile/";
+    if (playerDir.back() != L'/' && playerDir.back() != L'\\')
+        playerDir += L"/";
+    const std::string playerPath = utf8_encode(playerDir + L"player");
 
+    auto launchPlayer = [&](const std::wstring& scriptPath, pid_t& trackedPid) {
+        if (trackedPid != 0 || scriptPath.empty())
+            return;
+
+        printf("script: %s", utf8_encode(scriptPath).c_str());
         pid = fork();
         sleep(1);
         if (pid < 0) {
-
-            /* This is an error */
             perror("fork()");
-            return 1;
-
+            return;
         }
-        else if (pid == 0) {
-
-            /* This is the CHILD */
-            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", utf8_encode(content_filename).c_str(), (char*)0);
-
-            perror("execlp()");
-
-            /* An exec does NOT return. */
-            /* The next lines won't execute unless there's an error with exec. */
-
-            printf("Child %u, parent %u\n", getpid(), getppid());
+        if (pid == 0) {
+            execl(playerPath.c_str(), "player", "-w", "800", "-h", "600",
+                  utf8_encode(scriptPath).c_str(), (char*)0);
+            perror("execl()");
             exit(0);
-
         }
-        else {
-            /* This is the PARENT */
-            printf("Parent %u says child PID is %u\n", getpid(), pid);
+        trackedPid = pid;
+    };
 
-            last_pid = pid;
-        }
-    }
-    else
-    {
-    }
-
-    if (client_pid == 0 && client_filename.size() != 0)
-    {
-        printf("script: %s", utf8_encode(client_filename).c_str());
-
-        pid = fork();
-        sleep(1);
-        if (pid < 0) {
-
-            /* This is an error */
-            perror("fork()");
-            return 1;
-
-        }
-        else if (pid == 0) {
-
-            /* This is the CHILD */
-            execlp("/home/pi/pixile/player", "player", "-w 800", "-h 600", utf8_encode(client_filename).c_str(), (char*)0);
-
-            perror("execlp()");
-
-            /* An exec does NOT return. */
-            /* The next lines won't execute unless there's an error with exec. */
-
-            printf("Child %u, parent %u\n", getpid(), getppid());
-            exit(0);
-
-        }
-        else {
-            /* This is the PARENT */
-            printf("Parent %u says child PID is %u\n", getpid(), pid);
-
-            client_pid = pid;
-        }
-    }
-    else
-    {
-    }
+    launchPlayer(content_filename, last_pid);
+    launchPlayer(client_filename, client_pid);
 #endif
     return true;
 }

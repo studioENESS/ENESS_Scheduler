@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="imgui">
@@ -50,6 +50,9 @@
       <Filter>scheduler\features</Filter>
     </ClCompile>
     <ClCompile Include="..\..\scheduler\features\feature_multiscripts.cpp">
+      <Filter>scheduler\features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scheduler\features\feature_script_library.cpp">
       <Filter>scheduler\features</Filter>
     </ClCompile>
     <ClCompile Include="..\..\scheduler\features\feature_sleep_periods.cpp">
@@ -142,6 +145,9 @@
       <Filter>scheduler\features</Filter>
     </ClInclude>
     <ClInclude Include="..\..\scheduler\features\feature_multiscripts.h">
+      <Filter>scheduler\features</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scheduler\features\feature_script_library.h">
       <Filter>scheduler\features</Filter>
     </ClInclude>
     <ClInclude Include="..\..\scheduler\features\feature_sleep_periods.h">

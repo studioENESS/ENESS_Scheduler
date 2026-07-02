@@ -13,6 +13,7 @@ option(FEATURE_GOOGLE          "Schedule items with per-item daily start/end tim
 option(FEATURE_WELLESLEY       "Wellesley Library content schedule"                 OFF)
 option(FEATURE_AUDIO           "Scheduled audio volume changes (audio tweaker)"     OFF)
 option(FEATURE_MULTIPLE_SCRIPTS "Multiple named scripts"                            OFF)
+option(FEATURE_SCRIPT_LIBRARY  "Script catalog: scan disk and clone public git repos" OFF)
 option(FEATURE_SLEEP_PERIODS   "Scheduled sleep breaks (prayer times)"              OFF)
 option(FEATURE_CSL             "CSL content on/off + pause controls"                OFF)
 option(USE_HARD_PATHS          "Load/save the schedule from a fixed path"           ON)
@@ -20,7 +21,7 @@ option(AUTO_RUNNER_ONLY        "Auto runner only mode"                          
 
 foreach(feature
         FEATURE_CHOOSE_DAYS FEATURE_KINETIC FEATURE_GOOGLE FEATURE_WELLESLEY
-        FEATURE_AUDIO FEATURE_MULTIPLE_SCRIPTS FEATURE_SLEEP_PERIODS FEATURE_CSL
+        FEATURE_AUDIO FEATURE_MULTIPLE_SCRIPTS FEATURE_SCRIPT_LIBRARY FEATURE_SLEEP_PERIODS FEATURE_CSL
         USE_HARD_PATHS AUTO_RUNNER_ONLY)
     if(${feature})
         add_compile_definitions(${feature})
@@ -45,6 +46,7 @@ add_executable(scheduler
 	${SCHED_ROOT}/features/feature_google.cpp
 	${SCHED_ROOT}/features/feature_kinetic.cpp
 	${SCHED_ROOT}/features/feature_multiscripts.cpp
+	${SCHED_ROOT}/features/feature_script_library.cpp
 	${SCHED_ROOT}/features/feature_sleep_periods.cpp
 	${SCHED_ROOT}/features/feature_wellesley.cpp
 	${SCHED_ROOT}/features/schedule_list_common.cpp
