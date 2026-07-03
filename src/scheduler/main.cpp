@@ -70,6 +70,7 @@ void CleanupIMGUI(GLFWwindow* window)
 
 int main(int, char**)
 {
+    PlatformInstallShutdownHandlers();
 
     loadSchedule(SCHEDULER_DEFAULT_SCHEDULE_PATH);
 
@@ -147,8 +148,8 @@ int main(int, char**)
 
     }
 
+    killPlayer();
     CleanupIMGUI(window);
-
 
     return 0;
 }

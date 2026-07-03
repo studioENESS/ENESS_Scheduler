@@ -52,6 +52,69 @@ static std::string LinuxScriptPathForPlayer(const std::wstring& scriptPath)
     return path;
 }
 
+static void StopTrackedPlayerPid(pid_t& pid, bool signalSafe)
+{
+    if (pid == 0)
+        return;
+
+    kill(pid, SIGTERM);
+    if (signalSafe)
+    {
+        waitpid(pid, nullptr, WNOHANG);
+        if (kill(pid, 0) == 0)
+            kill(pid, SIGKILL);
+        waitpid(pid, nullptr, WNOHANG);
+        pid = 0;
+        return;
+    }
+
+    for (int i = 0; i < 20; ++i)
+    {
+        const pid_t result = waitpid(pid, nullptr, WNOHANG);
+        if (result == pid || result == -1)
+        {
+            pid = 0;
+            return;
+        }
+        usleep(50000);
+    }
+
+    kill(pid, SIGKILL);
+    waitpid(pid, nullptr, 0);
+    pid = 0;
+}
+
+static void StopTrackedPlayers(bool signalSafe)
+{
+    StopTrackedPlayerPid(last_pid, signalSafe);
+    StopTrackedPlayerPid(client_pid, signalSafe);
+}
+
+static void AtexitKillPlayers()
+{
+    StopTrackedPlayers(false);
+}
+
+static void ShutdownSignalHandler(int sig)
+{
+    StopTrackedPlayers(true);
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+void PlatformInstallShutdownHandlers()
+{
+    atexit(AtexitKillPlayers);
+
+    struct sigaction sa{};
+    sa.sa_handler = ShutdownSignalHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGINT, &sa, nullptr);
+    sigaction(SIGHUP, &sa, nullptr);
+}
+
 #endif
 
 #ifdef _WIN32
@@ -131,17 +194,7 @@ bool killPlayer()
     killProcessByName(L"Player.exe");
     killProcessByName(L"Pixile.exe");
 #else
-    if (last_pid != 0)
-    {
-
-        kill(last_pid, 1);
-        last_pid = 0;
-    }
-    if (client_pid != 0)
-    {
-        kill(client_pid, 1);
-        client_pid = 0;
-    }
+    StopTrackedPlayers(false);
 #endif
     return bResult;
 }

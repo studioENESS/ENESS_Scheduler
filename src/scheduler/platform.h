@@ -36,6 +36,11 @@ std::wstring utf8_decode(const std::string& str);
 
 void killProcessByName(const wchar_t* filename);
 bool killPlayer();
+#ifndef _WIN32
+void PlatformInstallShutdownHandlers();
+#else
+inline void PlatformInstallShutdownHandlers() {}
+#endif
 void SetCurrentProgram(uint32_t programID, uint32_t paused = 0);
 bool startPlayer(uint32_t programID);
 EPS isProcessRunning(const wchar_t* processName, int scheduleItem);
