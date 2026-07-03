@@ -19,6 +19,7 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #else
+#include <cerrno>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -342,13 +343,11 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
 
         if (last_pid != 0)
         {
-            pid_t pid;
-            int pud_status;
-            pid = waitpid(last_pid, &pud_status, WNOHANG);
-            if (status == 0) {
+            int wstatus = 0;
+            const pid_t result = waitpid(last_pid, &wstatus, WNOHANG);
+            if (result == 0)
                 status = PIXILE_STATUS_RUNNING;
-            }
-            if (pid == -1)
+            else if (result == last_pid || result == -1)
             {
                 status = PIXILE_STATUS_OFF;
                 last_pid = 0;
@@ -361,20 +360,13 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
 
         if (client_pid != 0)
         {
-            pid_t pid;
-            int pud_status;
-            pid = waitpid(client_pid, &pud_status, WNOHANG);
-
-            if (pid == -1)
+            int wstatus = 0;
+            const pid_t result = waitpid(client_pid, &wstatus, WNOHANG);
+            if (result == client_pid || result == -1)
             {
                 status = PIXILE_STATUS_OFF;
-
                 client_pid = 0;
             }
-        }
-        else
-        {
-            status = PIXILE_STATUS_OFF;
         }
 
 #endif
