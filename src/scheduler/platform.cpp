@@ -20,6 +20,7 @@
 #include <tlhelp32.h>
 #else
 #include <cerrno>
+#include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -304,20 +305,79 @@ bool startPlayer(uint32_t programID)
     CloseHandle(pi.hThread);
 #else
     auto linuxPlayerPath = []() -> std::string {
-        constexpr const char* kDefaultPlayer = "/home/pi/pixile/player";
-        if (pixile_location.empty())
-            return kDefaultPlayer;
+        auto resolveCandidate = [](std::string raw) -> std::string {
+            raw = TrimAscii(raw);
+            if (raw.empty() || raw.front() != '/')
+                return {};
 
-        const std::string loc = utf8_encode(pixile_location);
-        if (!loc.empty() && loc.front() == '/')
+            if (access(raw.c_str(), X_OK) == 0)
+            {
+                std::string withSlash = raw;
+                if (withSlash.back() != '/')
+                    withSlash += '/';
+                const std::string inDir = withSlash + "player";
+                if (access(inDir.c_str(), X_OK) == 0)
+                    return inDir;
+                if (raw.size() >= 7 &&
+                    (raw.compare(raw.size() - 6, 6, "player") == 0 ||
+                     raw.compare(raw.size() - 6, 6, "Player") == 0))
+                {
+                    return raw;
+                }
+            }
+
+            std::string dir = raw;
+            if (dir.back() != '/')
+                dir += '/';
+            for (const char* name : { "player", "Player" })
+            {
+                const std::string candidate = dir + name;
+                if (access(candidate.c_str(), X_OK) == 0)
+                    return candidate;
+            }
+            return {};
+        };
+
+        if (!pixile_location.empty())
         {
-            std::string path = loc;
-            if (path.back() != '/')
-                path += '/';
-            path += "player";
-            return path;
+            const std::string resolved = resolveCandidate(utf8_encode(pixile_location));
+            if (!resolved.empty())
+                return resolved;
         }
-        return kDefaultPlayer;
+
+        constexpr const char* kFallbacks[] = {
+            "/home/pi/pixile/player",
+            "/home/pi/pixile/Player",
+            "/home/pi/Pixile/player",
+            "/home/pi/Pixile/Player",
+            "/home/pi/pixile/Bin/Studio/Release/player",
+            "/home/pi/Pixile/Bin/Studio/Release/player",
+            "/usr/local/bin/player",
+            "/usr/bin/player",
+        };
+        for (const char* candidate : kFallbacks)
+        {
+            if (access(candidate, X_OK) == 0)
+                return candidate;
+        }
+
+        if (!pixile_location.empty())
+        {
+            std::string loc = TrimAscii(utf8_encode(pixile_location));
+            if (!loc.empty() && loc.front() == '/')
+            {
+                if (loc.size() >= 6 &&
+                    (loc.compare(loc.size() - 6, 6, "player") == 0 ||
+                     loc.compare(loc.size() - 6, 6, "Player") == 0))
+                {
+                    return loc;
+                }
+                if (loc.back() != '/')
+                    loc += '/';
+                return loc + "player";
+            }
+        }
+        return "/home/pi/pixile/player";
     };
 
     const std::string playerPath = linuxPlayerPath();
@@ -344,7 +404,7 @@ bool startPlayer(uint32_t programID)
             const std::string sw = std::to_string(screeninfo.w);
             const std::string sh = std::to_string(screeninfo.h);
             const std::string sm = std::to_string(g_bUseMouse ? 2 : 0);
-            execl(playerPath.c_str(), "player",
+            execlp(playerPath.c_str(), "player",
                   "-x", sx.c_str(),
                   "-y", sy.c_str(),
                   "-w", sw.c_str(),
@@ -352,8 +412,8 @@ bool startPlayer(uint32_t programID)
                   "-m", sm.c_str(),
                   "-s", script.c_str(),
                   (char*)0);
-            perror("execl()");
-            exit(0);
+            fprintf(stderr, "execl(%s): %s\n", playerPath.c_str(), strerror(errno));
+            _exit(1);
         }
         trackedPid = pid;
     };
