@@ -44,3 +44,7 @@ inline void PlatformInstallShutdownHandlers() {}
 void SetCurrentProgram(uint32_t programID, uint32_t paused = 0);
 bool startPlayer(uint32_t programID);
 EPS isProcessRunning(const wchar_t* processName, int scheduleItem);
+
+void SetGpioPinState(int pin, bool on);
+void ResetGpioStateCache();
+void UpdateGpioSchedules(bool& outLightsOn, bool& outSoundsOn);

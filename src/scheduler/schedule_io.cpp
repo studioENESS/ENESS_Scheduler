@@ -37,6 +37,7 @@ bool loadSchedule(const char* sFilename)
     if (jsonfile.contains("content_filename") && jsonfile["content_filename"].is_string())
         orig_content_filename = utf8_decode(jsonfile["content_filename"]);
     content_filename = orig_content_filename;
+    client_filename.clear();
     if (jsonfile.contains("client_filename") && jsonfile["client_filename"].is_string())
     {
         client_filename = utf8_decode(jsonfile["client_filename"]);
@@ -84,6 +85,47 @@ bool loadSchedule(const char* sFilename)
         ChooseDays_LoadJson(time);
     }
 
+    lights_start_hour = start_hour;
+    lights_start_minute = start_minute;
+    lights_end_hour = end_hour;
+    lights_end_minute = end_minute;
+
+    sounds_start_hour = start_hour;
+    sounds_start_minute = start_minute;
+    sounds_end_hour = end_hour;
+    sounds_end_minute = end_minute;
+
+    auto loadDailyWindow = [](const nlohmann::json& obj, int& sHour, int& sMin, int& eHour, int& eMin) {
+        if (!obj.is_object())
+            return;
+        if (obj.contains("start") && obj["start"].is_object()) {
+            const auto& start = obj["start"];
+            if (start.contains("hour") && start["hour"].is_number_integer())
+                sHour = start["hour"].get<int>();
+            if (start.contains("minute") && start["minute"].is_number_integer())
+                sMin = start["minute"].get<int>();
+        }
+        if (obj.contains("end") && obj["end"].is_object()) {
+            const auto& end = obj["end"];
+            if (end.contains("hour") && end["hour"].is_number_integer())
+                eHour = end["hour"].get<int>();
+            if (end.contains("minute") && end["minute"].is_number_integer())
+                eMin = end["minute"].get<int>();
+        }
+    };
+
+    if (jsonfile.contains("lights"))
+        loadDailyWindow(jsonfile["lights"], lights_start_hour, lights_start_minute, lights_end_hour, lights_end_minute);
+    else if (jsonfile.contains("time") && jsonfile["time"].is_object() && jsonfile["time"].contains("lights"))
+        loadDailyWindow(jsonfile["time"]["lights"], lights_start_hour, lights_start_minute, lights_end_hour, lights_end_minute);
+
+    if (jsonfile.contains("sounds"))
+        loadDailyWindow(jsonfile["sounds"], sounds_start_hour, sounds_start_minute, sounds_end_hour, sounds_end_minute);
+    else if (jsonfile.contains("time") && jsonfile["time"].is_object() && jsonfile["time"].contains("sounds"))
+        loadDailyWindow(jsonfile["time"]["sounds"], sounds_start_hour, sounds_start_minute, sounds_end_hour, sounds_end_minute);
+
+    ResetGpioStateCache();
+
     MultiScripts_LoadJson(jsonfile);
     Google_LoadSchedule(jsonfile);
     Wellesley_LoadSchedule(jsonfile);
@@ -120,6 +162,21 @@ bool saveSchedule(const char* sFilename)
     jsonfile["time"]["start"]["minute"] = start_minute;
     jsonfile["time"]["end"]["hour"] = end_hour;
     jsonfile["time"]["end"]["minute"] = end_minute;
+
+    if (HasTwoScripts())
+    {
+        jsonfile["lights"]["pin"] = GPIO_PIN_LIGHTS;
+        jsonfile["lights"]["start"]["hour"] = lights_start_hour;
+        jsonfile["lights"]["start"]["minute"] = lights_start_minute;
+        jsonfile["lights"]["end"]["hour"] = lights_end_hour;
+        jsonfile["lights"]["end"]["minute"] = lights_end_minute;
+
+        jsonfile["sounds"]["pin"] = GPIO_PIN_SOUNDS;
+        jsonfile["sounds"]["start"]["hour"] = sounds_start_hour;
+        jsonfile["sounds"]["start"]["minute"] = sounds_start_minute;
+        jsonfile["sounds"]["end"]["hour"] = sounds_end_hour;
+        jsonfile["sounds"]["end"]["minute"] = sounds_end_minute;
+    }
 
     ChooseDays_SaveJson(jsonfile);
     Google_SaveSchedule(jsonfile);

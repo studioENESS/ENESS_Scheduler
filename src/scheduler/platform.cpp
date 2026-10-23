@@ -411,14 +411,21 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
             status = PIXILE_STATUS_OFF;
         }
 
-        if (client_pid != 0)
+        if (!client_filename.empty())
         {
-            int wstatus = 0;
-            const pid_t result = waitpid(client_pid, &wstatus, WNOHANG);
-            if (result == client_pid || result == -1)
+            if (client_pid != 0)
+            {
+                int wstatus = 0;
+                const pid_t result = waitpid(client_pid, &wstatus, WNOHANG);
+                if (result == client_pid || result == -1)
+                {
+                    status = PIXILE_STATUS_OFF;
+                    client_pid = 0;
+                }
+            }
+            else
             {
                 status = PIXILE_STATUS_OFF;
-                client_pid = 0;
             }
         }
 
@@ -435,4 +442,99 @@ EPS isProcessRunning(const wchar_t* processName, int scheduleItem)
 
     return status;
 
+}
+
+namespace {
+
+struct GpioPinState
+{
+    int pin;
+    bool modeConfigured = false;
+    int lastValue = -1; // -1 = unknown, 0 = LOW (off), 1 = HIGH (on)
+};
+
+GpioPinState g_gpioPins[] = {
+    { GPIO_PIN_LIGHTS, false, -1 },
+    { GPIO_PIN_SOUNDS, false, -1 },
+};
+
+#ifndef _WIN32
+bool g_triedStartingPigpiod = false;
+#endif
+
+GpioPinState* FindGpioPinState(int pin)
+{
+    for (auto& entry : g_gpioPins)
+    {
+        if (entry.pin == pin)
+            return &entry;
+    }
+    return nullptr;
+}
+
+} // namespace
+
+void ResetGpioStateCache()
+{
+    for (auto& entry : g_gpioPins)
+    {
+        entry.modeConfigured = false;
+        entry.lastValue = -1;
+    }
+}
+
+void SetGpioPinState(int pin, bool on)
+{
+    const int targetValue = on ? 1 : 0;
+    GpioPinState* state = FindGpioPinState(pin);
+    if (state && state->lastValue == targetValue)
+        return;
+
+#ifdef _WIN32
+    printf("GPIO pin %d -> %s (%d)\n", pin, on ? "ON" : "OFF", targetValue);
+#else
+    if (!state || !state->modeConfigured)
+    {
+        const std::string modeCmd = "pigs m " + std::to_string(pin) + " w >/dev/null 2>&1";
+        int rc = std::system(modeCmd.c_str());
+        if (rc != 0 && !g_triedStartingPigpiod)
+        {
+            g_triedStartingPigpiod = true;
+            std::system("sudo -n pigpiod >/dev/null 2>&1 || pigpiod >/dev/null 2>&1");
+            rc = std::system(modeCmd.c_str());
+        }
+        if (state && rc == 0)
+            state->modeConfigured = true;
+    }
+
+    const std::string writeCmd = "pigs w " + std::to_string(pin) + " " + std::to_string(targetValue) + " >/dev/null 2>&1";
+    std::system(writeCmd.c_str());
+#endif
+
+    if (state)
+        state->lastValue = targetValue;
+}
+
+void UpdateGpioSchedules(bool& outLightsOn, bool& outSoundsOn)
+{
+    if (!HasTwoScripts())
+    {
+        outLightsOn = false;
+        outSoundsOn = false;
+        return;
+    }
+
+    const time_t currentTime = time(0);
+    tm localTime{};
+    localtime_s(&localTime, &currentTime);
+
+    outLightsOn = isFixedScheduleActive(&localTime,
+                                        lights_start_hour, lights_start_minute,
+                                        lights_end_hour, lights_end_minute);
+    outSoundsOn = isFixedScheduleActive(&localTime,
+                                        sounds_start_hour, sounds_start_minute,
+                                        sounds_end_hour, sounds_end_minute);
+
+    SetGpioPinState(GPIO_PIN_LIGHTS, outLightsOn);
+    SetGpioPinState(GPIO_PIN_SOUNDS, outSoundsOn);
 }

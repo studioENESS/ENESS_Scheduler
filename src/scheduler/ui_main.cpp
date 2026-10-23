@@ -309,6 +309,27 @@ void DrawMainGUI()
         }
     }
 
+    if (HasTwoScripts())
+    {
+        bool lightsOn = false;
+        bool soundsOn = false;
+        UpdateGpioSchedules(lightsOn, soundsOn);
+
+        ImGui::Text("Lights Status (GPIO %d):", GPIO_PIN_LIGHTS);
+        ImGui::SameLine();
+        if (lightsOn)
+            ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "ON");
+        else
+            ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "OFF (Out of Scheduled Time)");
+
+        ImGui::Text("Sounds Status (GPIO %d):", GPIO_PIN_SOUNDS);
+        ImGui::SameLine();
+        if (soundsOn)
+            ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "ON");
+        else
+            ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "OFF (Out of Scheduled Time)");
+    }
+
     if (ScriptLibraryFeatureEnabled)
         ScriptLibrary_DrawCurrentContent(item);
     else if (MultiScriptsFeatureEnabled)
@@ -330,6 +351,28 @@ void DrawMainGUI()
         createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
         if (scheduleCrossesMidnight(start_hour, start_minute, end_hour, end_minute))
             ImGui::TextDisabled("(end time is the next day)");
+    }
+
+    if (HasTwoScripts())
+    {
+        ImGui::Separator();
+        ImGui::Text("Lights Schedule (GPIO %d)", GPIO_PIN_LIGHTS);
+        ImGui::Text("Lights Start Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled Lights Start Time (Per Day)", lights_start_hour, lights_start_minute);
+        ImGui::Text("Lights End Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled Lights End Time (Per Day)", lights_end_hour, lights_end_minute);
+        if (scheduleCrossesMidnight(lights_start_hour, lights_start_minute, lights_end_hour, lights_end_minute))
+            ImGui::TextDisabled("(end time is the next day)");
+
+        ImGui::Separator();
+        ImGui::Text("Sounds Schedule (GPIO %d)", GPIO_PIN_SOUNDS);
+        ImGui::Text("Sounds Start Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled Sounds Start Time (Per Day)", sounds_start_hour, sounds_start_minute);
+        ImGui::Text("Sounds End Time"); ImGui::SameLine();
+        createTimeCombo("Scheduled Sounds End Time (Per Day)", sounds_end_hour, sounds_end_minute);
+        if (scheduleCrossesMidnight(sounds_start_hour, sounds_start_minute, sounds_end_hour, sounds_end_minute))
+            ImGui::TextDisabled("(end time is the next day)");
+        ImGui::Separator();
     }
 
     ChooseDays_DrawUI();

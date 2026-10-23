@@ -21,6 +21,7 @@
 #pragma comment(linker, "/SUBSYSTEM:Windows /ENTRY:mainCRTStartup")
 #endif
 
+#include "app_state.h"
 #include "platform.h"
 #include "schedule_io.h"
 #include "ui_main.h"
@@ -110,6 +111,9 @@ int main(int, char**)
     iWHeight = Google_AdjustWindowHeight(iWHeight);
     iWHeight = Wellesley_AdjustWindowHeight(iWHeight);
     iWHeight = ScriptLibrary_AdjustWindowHeight(iWHeight);
+    const int baseWindowHeight = iWHeight;
+    if (HasTwoScripts())
+        iWHeight += 180;
 
     GLFWwindow* window = nullptr;
     // Create window with graphics context
@@ -124,6 +128,14 @@ int main(int, char**)
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+
+        if (HasTwoScripts())
+        {
+            int curW = 0, curH = 0;
+            glfwGetWindowSize(window, &curW, &curH);
+            if (curH < baseWindowHeight + 180)
+                glfwSetWindowSize(window, curW, baseWindowHeight + 180);
+        }
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();

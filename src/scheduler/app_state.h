@@ -54,6 +54,21 @@ extern int start_minute;
 extern int end_hour;
 extern int end_minute;
 
+inline constexpr int GPIO_PIN_LIGHTS = 6;
+inline constexpr int GPIO_PIN_SOUNDS = 16;
+
+extern int lights_start_hour;
+extern int lights_start_minute;
+extern int lights_end_hour;
+extern int lights_end_minute;
+
+extern int sounds_start_hour;
+extern int sounds_start_minute;
+extern int sounds_end_hour;
+extern int sounds_end_minute;
+
+bool HasTwoScripts();
+
 extern bool g_bUseAlternatePlayer;
 extern bool g_bCanUseAlternatePlayer;
 extern bool g_bUseMouse;

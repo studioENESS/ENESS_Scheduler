@@ -579,6 +579,9 @@ bool ScriptLibrary_ApplyEntry(const std::string& id)
     if (!entry)
         return false;
 
+    if (content_filename != entry->content_path || client_filename != entry->client_path)
+        ResetGpioStateCache();
+
     content_filename = entry->content_path;
     orig_content_filename = entry->content_path;
     client_filename = entry->client_path;

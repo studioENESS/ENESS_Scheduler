@@ -13,6 +13,21 @@ int start_minute = 55;
 int end_hour = 20;
 int end_minute = 55;
 
+int lights_start_hour = 6;
+int lights_start_minute = 55;
+int lights_end_hour = 20;
+int lights_end_minute = 55;
+
+int sounds_start_hour = 6;
+int sounds_start_minute = 55;
+int sounds_end_hour = 20;
+int sounds_end_minute = 55;
+
+bool HasTwoScripts()
+{
+    return !content_filename.empty() && !client_filename.empty();
+}
+
 bool g_bUseAlternatePlayer = false;
 bool g_bCanUseAlternatePlayer = false;
 bool g_bUseMouse = false;

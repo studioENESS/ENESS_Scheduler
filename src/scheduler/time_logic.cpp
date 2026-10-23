@@ -135,3 +135,30 @@ bool isTimeBetween(tm* time, int cur_start_hour, int cur_start_minute, int cur_e
     }
     return true;
 }
+
+bool isFixedScheduleActive(tm* time, int cur_start_hour, int cur_start_minute, int cur_end_hour, int cur_end_minute)
+{
+    if (!CSL_IsValidDay())
+        return false;
+
+    int dayToCheck = time->tm_wday;
+    if (scheduleCrossesMidnight(cur_start_hour, cur_start_minute, cur_end_hour, cur_end_minute) &&
+        isMorningPortion(time, cur_end_hour, cur_end_minute))
+    {
+        dayToCheck = (dayToCheck + 6) % 7;
+    }
+
+#ifdef FEATURE_CHOOSE_DAYS
+    if (!bDays[dayToCheck])
+        return false;
+#else
+    (void)dayToCheck;
+#endif
+
+    if (scheduleCrossesMidnight(cur_start_hour, cur_start_minute, cur_end_hour, cur_end_minute)) {
+        return (time->tm_hour > cur_start_hour || (time->tm_hour == cur_start_hour && time->tm_min >= cur_start_minute)) ||
+               (time->tm_hour < cur_end_hour || (time->tm_hour == cur_end_hour && time->tm_min <= cur_end_minute));
+    }
+
+    return isTimeInRange(time, cur_start_hour, cur_start_minute, cur_end_hour, cur_end_minute);
+}
