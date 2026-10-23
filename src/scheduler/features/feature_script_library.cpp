@@ -20,6 +20,7 @@
 
 #include "../app_state.h"
 #include "../platform.h"
+#include "../ui_main.h"
 #include "schedule_list_common.h"
 
 namespace {
@@ -656,8 +657,9 @@ bool ScriptLibrary_ScriptChanged(int item, int lastItem)
 
 void ScriptLibrary_DrawCurrentContent(int item)
 {
-    ImGui::Text("Current Scheduled Content:");
-    ImGui::SameLine();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Content");
+    ImGui::SameLine(UIPx(148.0f));
     if (item >= 0 && item < (int)g_vecSchedule.size())
     {
         const auto* entry = ScriptLibrary_FindEntry(g_vecSchedule[item]->catalog_id);

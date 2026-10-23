@@ -12,6 +12,7 @@
 
 #include "../app_state.h"
 #include "../platform.h"
+#include "../ui_main.h"
 #include "schedule_list_common.h"
 
 std::vector<ContentItem> content_items;
@@ -139,9 +140,13 @@ bool Wellesley_ScriptChanged(int item, int lastItem)
 
 void Wellesley_DrawCurrentContent(int item)
 {
-    ImGui::Text("Current Scheduled Content: ");
-    ImGui::SameLine();
-    ImGui::Text(content_items[item].name.c_str());
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Content");
+    ImGui::SameLine(UIPx(148.0f));
+    if (item >= 0 && item < (int)content_items.size())
+        ImGui::Text("%s", content_items[item].name.c_str());
+    else
+        ImGui::TextDisabled("(none)");
 }
 
 void Wellesley_DrawScheduleUI()

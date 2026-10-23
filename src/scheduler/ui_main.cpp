@@ -1,6 +1,9 @@
 #include "ui_main.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <ctime>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,9 +23,102 @@
 #include "features/feature_wellesley.h"
 #include "features/feature_script_library.h"
 
+namespace {
+
+float g_uiScale = 1.0f;
+
+bool FileExists(const char* path)
+{
+    if (!path || !*path)
+        return false;
+    std::error_code ec;
+    return std::filesystem::is_regular_file(path, ec);
+}
+
+std::string ShortScriptDisplay(const std::wstring& wpath)
+{
+    std::string s = utf8_encode(wpath);
+    if (s.empty())
+        return "(none)";
+    const auto pos = s.find_last_of("/\\");
+    if (pos != std::string::npos && pos + 1 < s.size())
+        return s.substr(pos + 1);
+    return s;
+}
+
+} // namespace
+
+float GetUIScale()
+{
+    return g_uiScale;
+}
+
+float UIPx(float value)
+{
+    return value * g_uiScale;
+}
+
+void DrawSectionHeader(const char* title, const char* hint)
+{
+    ImGui::Spacing();
+    ImGui::TextUnformatted(title);
+    ImGui::Separator();
+    if (hint && *hint)
+        ImGui::TextDisabled("%s", hint);
+}
+
+void SetupFonts(float scale)
+{
+    if (scale <= 0.0f)
+        scale = 1.0f;
+    g_uiScale = scale;
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->Clear();
+
+#ifdef _WIN32
+    const std::string candidates[] = {
+        "C:\\Windows\\Fonts\\segoeui.ttf",
+        "C:\\Windows\\Fonts\\arial.ttf",
+    };
+#else
+    const std::string candidates[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+    };
+#endif
+
+    ImFont* loaded = nullptr;
+    for (const auto& path : candidates)
+    {
+        if (FileExists(path.c_str()))
+        {
+            loaded = io.Fonts->AddFontFromFileTTF(path.c_str(), 15.0f * scale);
+            if (loaded)
+                break;
+        }
+    }
+
+    if (!loaded)
+    {
+        io.Fonts->AddFontDefault();
+        io.FontGlobalScale = scale;
+    }
+}
+
+void ScaleStyleForDPI(float scale)
+{
+    if (scale <= 1.01f)
+        return;
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(scale);
+}
+
 static int GetCurrentScheduledItem()
 {
-
     time_t currentTime = time(0);
     tm* localTime = new tm();
     localtime_s(localTime, &currentTime);
@@ -48,96 +144,71 @@ static int GetCurrentScheduledItem()
     return 12;
 }
 
-
 void createTimeCombo(std::string sComboName, int& current_hour_idx, int& current_min_idx)
 {
     ImGui::PushID(sComboName.c_str());
-    // Hour
+    char hourPreview[8];
+    std::snprintf(hourPreview, sizeof(hourPreview), "%02d", current_hour_idx);
+    ImGui::SetNextItemWidth(UIPx(68.0f));
+    if (ImGui::BeginCombo("##HourTime", hourPreview))
     {
-        auto old_str = std::to_string(current_hour_idx);
-        auto new_str = std::string(2 - mymin(2, old_str.length()), '0') + old_str;
-        const char* combo_preview_value = new_str.c_str();  // Pass in the preview value visible before opening the combo (it could be anything)
-        ImGui::SetNextItemWidth(80);
-        if (ImGui::BeginCombo("###HourTime", combo_preview_value))
+        for (int n = 0; n < 24; n++)
         {
-            for (int n = 0; n < 24; n++)
-            {
-
-                const bool is_selected = (current_hour_idx == n);
-                auto old_str2 = std::to_string(n);
-                auto new_str2 = std::string(2 - mymin(2, old_str2.length()), '0') + old_str2;
-
-                if (ImGui::Selectable(new_str2.c_str(), &is_selected))
-                {
-                    current_hour_idx = n;
-                }
-                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
+            const bool is_selected = (current_hour_idx == n);
+            char itemLabel[8];
+            std::snprintf(itemLabel, sizeof(itemLabel), "%02d", n);
+            if (ImGui::Selectable(itemLabel, is_selected))
+                current_hour_idx = n;
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
         }
+        ImGui::EndCombo();
     }
-    ImGui::SameLine();
-    // Minute
+
+    ImGui::SameLine(0.0f, UIPx(4.0f));
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled(":");
+    ImGui::SameLine(0.0f, UIPx(4.0f));
+
+    char minPreview[8];
+    std::snprintf(minPreview, sizeof(minPreview), "%02d", current_min_idx);
+    ImGui::SetNextItemWidth(UIPx(68.0f));
+    if (ImGui::BeginCombo("##MinuteTime", minPreview))
     {
-        auto old_str = std::to_string(current_min_idx);
-        auto new_str = std::string(2 - mymin(2, old_str.length()), '0') + old_str;
-        const char* combo_preview_value = new_str.c_str();  // Pass in the preview value visible before opening the combo (it could be anything)
-        ImGui::SetNextItemWidth(80);
-        if (ImGui::BeginCombo("###MinuteTime", combo_preview_value))
+        for (int n = 0; n < 60; n++)
         {
-
-            for (int n = 0; n < 60; n++)
-            {
-
-                const bool is_selected = (current_min_idx == n);
-                auto old_str3 = std::to_string(n);
-                auto new_str3 = std::string(2 - mymin(2, old_str3.length()), '0') + old_str3;
-
-                if (ImGui::Selectable(new_str3.c_str(), &is_selected))
-                {
-                    current_min_idx = n;
-                }
-                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
+            const bool is_selected = (current_min_idx == n);
+            char itemLabel[8];
+            std::snprintf(itemLabel, sizeof(itemLabel), "%02d", n);
+            if (ImGui::Selectable(itemLabel, is_selected))
+                current_min_idx = n;
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
         }
+        ImGui::EndCombo();
     }
     ImGui::PopID();
 }
 
-void pushStyleColours18(float h, bool active) {
+void pushStyleColours18(float h, bool active)
+{
     while (h > 1) h = h - 1;
-    float offset = 0.45f;
-    float o = h + offset;
-    while (o > 1) o = o - 1;
-    //float v = 0.7;
     float v = 0;
     float grey = 0.2f;
-
-    //float s = 0.5;
     float s = 0.0f;
 
     ImGui::PushStyleColor(ImGuiCol_CheckMark, (ImVec4)ImColor::HSV(h, s, 1.f));
-
     ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(h, s, 0.35f));
     ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, (ImVec4)ImColor::HSV(h, s, 0.35f));
-
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(h, s, 0.2f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(h, s, 0.2f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(h, 0.5f, 0.7f));
-
     ImGui::PushStyleColor(ImGuiCol_Header, (ImVec4)ImColor::HSV(h, active ? 0.25f : s, active ? 0.35f : v));
     ImGui::PushStyleColor(ImGuiCol_HeaderActive, (ImVec4)ImColor::HSV(h, s, v));
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, (ImVec4)ImColor::HSV(h, 0.5f, 0.7f));
-
     ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(h, s, grey));
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(h, s, grey));
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(h, 0.5f, 0.7f));
-
     ImGui::PushStyleColor(ImGuiCol_Tab, (ImVec4)ImColor::HSV(h, s, v));
     ImGui::PushStyleColor(ImGuiCol_TabActive, (ImVec4)ImColor::HSV(h, 0.5f, 0.7f));
     ImGui::PushStyleColor(ImGuiCol_TabHovered, (ImVec4)ImColor::HSV(h, s, grey));
@@ -148,70 +219,102 @@ void pushStyleColours18(float h, bool active) {
 
 void StyleColorsPhotoshop()
 {
-    ImGuiStyle* style = &ImGui::GetStyle();
-    ImVec4* colors = style->Colors;
+    // Modern dark teal theme matching sync_to_pis.py / imgui_app.py
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding    = 8.0f;
+    style.ChildRounding     = 8.0f;
+    style.PopupRounding     = 8.0f;
+    style.FrameRounding     = 6.0f;
+    style.GrabRounding      = 6.0f;
+    style.TabRounding       = 6.0f;
+    style.ScrollbarRounding = 8.0f;
 
-    colors[ImGuiCol_Text] = ImVec4(1.000f, 1.000f, 1.000f, 1.000f);
-    colors[ImGuiCol_TextDisabled] = ImVec4(0.500f, 0.500f, 0.500f, 1.000f);
-    colors[ImGuiCol_WindowBg] = ImVec4(0.180f, 0.180f, 0.180f, 1.000f);
-    colors[ImGuiCol_ChildBg] = ImVec4(0.280f, 0.280f, 0.280f, 0.000f);
-    colors[ImGuiCol_PopupBg] = ImVec4(0.313f, 0.313f, 0.313f, 1.000f);
-    colors[ImGuiCol_Border] = ImVec4(0.266f, 0.266f, 0.266f, 1.000f);
-    colors[ImGuiCol_BorderShadow] = ImVec4(0.000f, 0.000f, 0.000f, 0.000f);
-    colors[ImGuiCol_FrameBg] = ImVec4(0.160f, 0.160f, 0.160f, 1.000f);
-    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.200f, 0.200f, 0.200f, 1.000f);
-    colors[ImGuiCol_FrameBgActive] = ImVec4(0.280f, 0.280f, 0.280f, 1.000f);
-    colors[ImGuiCol_TitleBg] = ImVec4(0.148f, 0.148f, 0.148f, 1.000f);
-    colors[ImGuiCol_TitleBgActive] = ImVec4(0.148f, 0.148f, 0.148f, 1.000f);
-    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.148f, 0.148f, 0.148f, 1.000f);
-    colors[ImGuiCol_MenuBarBg] = ImVec4(0.195f, 0.195f, 0.195f, 1.000f);
-    colors[ImGuiCol_ScrollbarBg] = ImVec4(0.160f, 0.160f, 0.160f, 1.000f);
-    colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.277f, 0.277f, 0.277f, 1.000f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.300f, 0.300f, 0.300f, 1.000f);
-    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_CheckMark] = ImVec4(1.000f, 1.000f, 1.000f, 1.000f);
-    colors[ImGuiCol_SliderGrab] = ImVec4(0.391f, 0.391f, 0.391f, 1.000f);
-    colors[ImGuiCol_SliderGrabActive] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_Button] = ImVec4(1.000f, 1.000f, 1.000f, 0.000f);
-    colors[ImGuiCol_ButtonHovered] = ImVec4(1.000f, 1.000f, 1.000f, 0.156f);
-    colors[ImGuiCol_ButtonActive] = ImVec4(1.000f, 1.000f, 1.000f, 0.391f);
-    colors[ImGuiCol_Header] = ImVec4(0.313f, 0.313f, 0.313f, 1.000f);
-    colors[ImGuiCol_HeaderHovered] = ImVec4(0.469f, 0.469f, 0.469f, 1.000f);
-    colors[ImGuiCol_HeaderActive] = ImVec4(0.469f, 0.469f, 0.469f, 1.000f);
-    colors[ImGuiCol_Separator] = colors[ImGuiCol_Border];
-    colors[ImGuiCol_SeparatorHovered] = ImVec4(0.391f, 0.391f, 0.391f, 1.000f);
-    colors[ImGuiCol_SeparatorActive] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_ResizeGrip] = ImVec4(1.000f, 1.000f, 1.000f, 0.250f);
-    colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.000f, 1.000f, 1.000f, 0.670f);
-    colors[ImGuiCol_ResizeGripActive] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_Tab] = ImVec4(0.098f, 0.098f, 0.098f, 1.000f);
-    colors[ImGuiCol_TabHovered] = ImVec4(0.352f, 0.352f, 0.352f, 1.000f);
-    colors[ImGuiCol_TabActive] = ImVec4(0.195f, 0.195f, 0.195f, 1.000f);
-    colors[ImGuiCol_TabUnfocused] = ImVec4(0.098f, 0.098f, 0.098f, 1.000f);
-    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.195f, 0.195f, 0.195f, 1.000f);
-    // colors[ImGuiCol_DockingPreview] = ImVec4(1.000f, 0.391f, 0.000f, 0.781f);
-    // colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.180f, 0.180f, 0.180f, 1.000f);
-    colors[ImGuiCol_PlotLines] = ImVec4(0.469f, 0.469f, 0.469f, 1.000f);
-    colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_PlotHistogram] = ImVec4(0.586f, 0.586f, 0.586f, 1.000f);
-    colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_TextSelectedBg] = ImVec4(1.000f, 1.000f, 1.000f, 0.156f);
-    colors[ImGuiCol_DragDropTarget] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_NavHighlight] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-    colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
-    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
+    style.WindowBorderSize  = 1.0f;
+    style.ChildBorderSize   = 1.0f;
+    style.FrameBorderSize   = 0.0f;
+    style.PopupBorderSize   = 1.0f;
+    style.TabBorderSize     = 0.0f;
 
-    style->ChildRounding = 4.0f;
-    style->FrameBorderSize = 1.0f;
-    style->FrameRounding = 2.0f;
-    style->GrabMinSize = 7.0f;
-    style->PopupRounding = 2.0f;
-    style->ScrollbarRounding = 12.0f;
-    style->ScrollbarSize = 13.0f;
-    style->TabBorderSize = 1.0f;
-    style->TabRounding = 0.0f;
-    style->WindowRounding = 4.0f;
+    style.WindowPadding     = ImVec2(16.0f, 14.0f);
+    style.FramePadding      = ImVec2(12.0f, 7.0f);
+    style.ItemSpacing       = ImVec2(10.0f, 8.0f);
+    style.ItemInnerSpacing  = ImVec2(8.0f, 6.0f);
+    style.CellPadding       = ImVec2(8.0f, 6.0f);
+    style.ScrollbarSize     = 12.0f;
+    style.GrabMinSize       = 12.0f;
+
+    const ImVec4 ink        = ImVec4(0.93f, 0.94f, 0.95f, 1.00f);
+    const ImVec4 muted      = ImVec4(0.62f, 0.66f, 0.70f, 1.00f);
+    const ImVec4 bg         = ImVec4(0.11f, 0.12f, 0.14f, 1.00f);
+    const ImVec4 raised     = ImVec4(0.16f, 0.17f, 0.20f, 1.00f);
+    const ImVec4 field      = ImVec4(0.20f, 0.22f, 0.25f, 1.00f);
+    const ImVec4 field_hot  = ImVec4(0.25f, 0.28f, 0.32f, 1.00f);
+    const ImVec4 line       = ImVec4(0.28f, 0.30f, 0.34f, 1.00f);
+    const ImVec4 accent     = ImVec4(0.29f, 0.62f, 0.60f, 1.00f);
+    const ImVec4 accent_hot = ImVec4(0.36f, 0.72f, 0.69f, 1.00f);
+    const ImVec4 accent_dim = ImVec4(0.18f, 0.36f, 0.36f, 1.00f);
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_Text]                  = ink;
+    colors[ImGuiCol_TextDisabled]          = muted;
+    colors[ImGuiCol_WindowBg]              = bg;
+    colors[ImGuiCol_ChildBg]               = raised;
+    colors[ImGuiCol_PopupBg]               = ImVec4(0.14f, 0.15f, 0.18f, 1.00f);
+    colors[ImGuiCol_Border]                = line;
+    colors[ImGuiCol_BorderShadow]          = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_FrameBg]               = field;
+    colors[ImGuiCol_FrameBgHovered]        = field_hot;
+    colors[ImGuiCol_FrameBgActive]         = field_hot;
+    colors[ImGuiCol_TitleBg]               = bg;
+    colors[ImGuiCol_TitleBgActive]         = bg;
+    colors[ImGuiCol_TitleBgCollapsed]      = bg;
+    colors[ImGuiCol_MenuBarBg]             = raised;
+    colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.10f, 0.11f, 0.13f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.32f, 0.35f, 0.39f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.40f, 0.44f, 0.48f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive]   = accent;
+    colors[ImGuiCol_CheckMark]             = accent_hot;
+    colors[ImGuiCol_SliderGrab]            = accent;
+    colors[ImGuiCol_SliderGrabActive]      = accent_hot;
+    colors[ImGuiCol_Button]                = ImVec4(0.24f, 0.26f, 0.30f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]         = ImVec4(0.30f, 0.34f, 0.38f, 1.00f);
+    colors[ImGuiCol_ButtonActive]          = accent_dim;
+    colors[ImGuiCol_Header]                = accent_dim;
+    colors[ImGuiCol_HeaderHovered]         = ImVec4(0.24f, 0.46f, 0.45f, 1.00f);
+    colors[ImGuiCol_HeaderActive]          = accent;
+    colors[ImGuiCol_Separator]             = line;
+    colors[ImGuiCol_SeparatorHovered]      = accent;
+    colors[ImGuiCol_SeparatorActive]       = accent_hot;
+    colors[ImGuiCol_ResizeGrip]            = ImVec4(0.29f, 0.62f, 0.60f, 0.25f);
+    colors[ImGuiCol_ResizeGripHovered]     = accent;
+    colors[ImGuiCol_ResizeGripActive]      = accent_hot;
+    colors[ImGuiCol_Tab]                   = raised;
+    colors[ImGuiCol_TabHovered]            = accent_dim;
+    colors[ImGuiCol_TabActive]             = ImVec4(0.20f, 0.38f, 0.38f, 1.00f);
+    colors[ImGuiCol_TabUnfocused]          = ImVec4(0.14f, 0.15f, 0.17f, 1.00f);
+    colors[ImGuiCol_TabUnfocusedActive]    = ImVec4(0.18f, 0.28f, 0.28f, 1.00f);
+    colors[ImGuiCol_TableHeaderBg]         = ImVec4(0.18f, 0.20f, 0.23f, 1.00f);
+    colors[ImGuiCol_TableBorderStrong]     = line;
+    colors[ImGuiCol_TableBorderLight]      = ImVec4(0.22f, 0.24f, 0.27f, 1.00f);
+    colors[ImGuiCol_TableRowBg]            = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_TableRowBgAlt]         = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+    colors[ImGuiCol_PlotLines]             = accent;
+    colors[ImGuiCol_PlotLinesHovered]      = accent_hot;
+    colors[ImGuiCol_PlotHistogram]         = accent;
+    colors[ImGuiCol_PlotHistogramHovered]  = accent_hot;
+    colors[ImGuiCol_TextSelectedBg]        = accent_dim;
+    colors[ImGuiCol_DragDropTarget]        = accent_hot;
+    colors[ImGuiCol_NavHighlight]          = accent;
+    colors[ImGuiCol_NavWindowingHighlight] = accent_hot;
+    colors[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.58f);
+    colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.00f, 0.00f, 0.00f, 0.58f);
+}
+
+static void DrawFormLabel(const char* label, float labelColumnWidth)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label);
+    ImGui::SameLine(labelColumnWidth);
 }
 
 void DrawMainGUI()
@@ -262,50 +365,62 @@ void DrawMainGUI()
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 #endif
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-    ImGui::Begin("ENESS Scheduler", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+    const ImGuiWindowFlags mainFlags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+    ImGui::Begin("ENESS Scheduler", nullptr, mainFlags);
+
+    const ImVec4 colOk   = ImVec4(0.45f, 0.85f, 0.55f, 1.00f);
+    const ImVec4 colWarn = ImVec4(0.90f, 0.70f, 0.30f, 1.00f);
+    const ImVec4 colErr  = ImVec4(0.95f, 0.40f, 0.40f, 1.00f);
+
+    const float labelCol = UIPx(148.0f);
+
+    // -----------------------------------------------------------------------
+    // Status Section
+    // -----------------------------------------------------------------------
+    DrawSectionHeader("Status");
 
     auto running = isProcessRunning(L"player.exe", item);
 
-    ImGui::Text("Current Player Status:");
-    ImGui::SameLine();
+    DrawFormLabel("Player", labelCol);
     switch (running)
     {
     case PIXILE_STATUS_RUNNING:
-        ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "Running");
+        ImGui::TextColored(colOk, "Running");
         break;
     case PIXILE_STATUS_NOTSCHEDULED:
-        ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "Out of Scheduled Time");
+        ImGui::TextColored(colWarn, "Out of Scheduled Time");
         killPlayer();
         break;
     case PIXILE_STATUS_OFF:
     default:
-        ImGui::TextColored(ImColor(IM_COL32(255, 0, 0, 255)), "Not Running");
+        ImGui::TextColored(colErr, "Not Running");
         startPlayer(item);
         break;
     }
 
-
-
-    std::string sPlayerStartStr;
     if (running == PIXILE_STATUS_RUNNING)
     {
-        ImGui::SameLine();
-        sPlayerStartStr.append("Restart Lumes");
-
-        sPlayerStartStr.append("##StartPlayer");
-        if (ImGui::Button(sPlayerStartStr.c_str()))
+        ImGui::SameLine(0.0f, UIPx(12.0f));
+        if (ImGui::Button("Restart Lumes##StartPlayer"))
         {
             killPlayer();
         }
-
     }
+
     if (g_bCanUseAlternatePlayer)
     {
+        DrawFormLabel("Tracking", labelCol);
         if (ImGui::Checkbox("Disable People Tracking", &g_bUseAlternatePlayer))
         {
             killPlayer();
-
         }
     }
 
@@ -315,80 +430,118 @@ void DrawMainGUI()
         bool soundsOn = false;
         UpdateGpioSchedules(lightsOn, soundsOn);
 
-        ImGui::Text("Lights Status (GPIO %d):", GPIO_PIN_LIGHTS);
-        ImGui::SameLine();
+        char lightsLabel[32];
+        std::snprintf(lightsLabel, sizeof(lightsLabel), "Lights (GPIO %d)", GPIO_PIN_LIGHTS);
+        DrawFormLabel(lightsLabel, labelCol);
         if (lightsOn)
-            ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "ON");
+            ImGui::TextColored(colOk, "ON");
         else
-            ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "OFF (Out of Scheduled Time)");
+            ImGui::TextColored(colWarn, "OFF  ·  Out of Scheduled Time");
 
-        ImGui::Text("Sounds Status (GPIO %d):", GPIO_PIN_SOUNDS);
-        ImGui::SameLine();
+        char soundsLabel[32];
+        std::snprintf(soundsLabel, sizeof(soundsLabel), "Sounds (GPIO %d)", GPIO_PIN_SOUNDS);
+        DrawFormLabel(soundsLabel, labelCol);
         if (soundsOn)
-            ImGui::TextColored(ImColor(IM_COL32(0, 255, 0, 255)), "ON");
+            ImGui::TextColored(colOk, "ON");
         else
-            ImGui::TextColored(ImColor(IM_COL32(255, 255, 0, 255)), "OFF (Out of Scheduled Time)");
+            ImGui::TextColored(colWarn, "OFF  ·  Out of Scheduled Time");
     }
 
     if (ScriptLibraryFeatureEnabled)
+    {
         ScriptLibrary_DrawCurrentContent(item);
+    }
     else if (MultiScriptsFeatureEnabled)
     {
-        ImGui::Text("Current Scheduled Content: ");
-        ImGui::SameLine();
+        DrawFormLabel("Content", labelCol);
+        ImGui::TextDisabled("%s", ShortScriptDisplay(content_filename).c_str());
     }
-    else
+    else if (WellesleyFeatureEnabled)
     {
         Wellesley_DrawCurrentContent(item);
     }
+    else
+    {
+        DrawFormLabel("Content", labelCol);
+        ImGui::Text("%s", ShortScriptDisplay(content_filename).c_str());
+        if (ImGui::IsItemHovered() && !content_filename.empty())
+            ImGui::SetTooltip("%s", utf8_encode(content_filename).c_str());
 
-    ImGui::Text("Staring Time"); ImGui::SameLine();
+        if (HasTwoScripts())
+        {
+            DrawFormLabel("Client", labelCol);
+            ImGui::Text("%s", ShortScriptDisplay(client_filename).c_str());
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", utf8_encode(client_filename).c_str());
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Schedule Section
+    // -----------------------------------------------------------------------
+    DrawSectionHeader("Schedule", "24-hour times written into Schedule.lsc.");
+
+    DrawFormLabel("Start", labelCol);
     createTimeCombo("Scheduled Start Time (Per Day)", start_hour, start_minute);
 
     if (!g_bUsePerDayEndTimes)
     {
-        ImGui::Text("Ending Time"); ImGui::SameLine();
+        DrawFormLabel("End", labelCol);
         createTimeCombo("Scheduled End Time (Per Day)", end_hour, end_minute);
         if (scheduleCrossesMidnight(start_hour, start_minute, end_hour, end_minute))
-            ImGui::TextDisabled("(end time is the next day)");
+        {
+            ImGui::SameLine(0.0f, UIPx(8.0f));
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("next day");
+        }
     }
 
     if (HasTwoScripts())
     {
-        ImGui::Separator();
-        ImGui::Text("Lights Schedule (GPIO %d)", GPIO_PIN_LIGHTS);
-        ImGui::Text("Lights Start Time"); ImGui::SameLine();
+        char lightsHeader[48];
+        std::snprintf(lightsHeader, sizeof(lightsHeader), "Lights Schedule (GPIO %d)", GPIO_PIN_LIGHTS);
+        DrawSectionHeader(lightsHeader);
+
+        DrawFormLabel("Start", labelCol);
         createTimeCombo("Scheduled Lights Start Time (Per Day)", lights_start_hour, lights_start_minute);
-        ImGui::Text("Lights End Time"); ImGui::SameLine();
+        DrawFormLabel("End", labelCol);
         createTimeCombo("Scheduled Lights End Time (Per Day)", lights_end_hour, lights_end_minute);
         if (scheduleCrossesMidnight(lights_start_hour, lights_start_minute, lights_end_hour, lights_end_minute))
-            ImGui::TextDisabled("(end time is the next day)");
+        {
+            ImGui::SameLine(0.0f, UIPx(8.0f));
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("next day");
+        }
 
-        ImGui::Separator();
-        ImGui::Text("Sounds Schedule (GPIO %d)", GPIO_PIN_SOUNDS);
-        ImGui::Text("Sounds Start Time"); ImGui::SameLine();
+        char soundsHeader[48];
+        std::snprintf(soundsHeader, sizeof(soundsHeader), "Sounds Schedule (GPIO %d)", GPIO_PIN_SOUNDS);
+        DrawSectionHeader(soundsHeader);
+
+        DrawFormLabel("Start", labelCol);
         createTimeCombo("Scheduled Sounds Start Time (Per Day)", sounds_start_hour, sounds_start_minute);
-        ImGui::Text("Sounds End Time"); ImGui::SameLine();
+        DrawFormLabel("End", labelCol);
         createTimeCombo("Scheduled Sounds End Time (Per Day)", sounds_end_hour, sounds_end_minute);
         if (scheduleCrossesMidnight(sounds_start_hour, sounds_start_minute, sounds_end_hour, sounds_end_minute))
-            ImGui::TextDisabled("(end time is the next day)");
-        ImGui::Separator();
+        {
+            ImGui::SameLine(0.0f, UIPx(8.0f));
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("next day");
+        }
     }
 
     ChooseDays_DrawUI();
 
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 128, 32, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(64, 128, 32, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 64, 16, 255));
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 
-    bool bLoadSchedule = ImGui::Button("Load Schedule");
-    ImGui::PopStyleColor(3);
+    bool bLoadSchedule = ImGui::Button("Load Schedule", ImVec2(UIPx(130.0f), 0.0f));
+    ImGui::SameLine(0.0f, UIPx(8.0f));
 
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(128, 0, 32, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(129, 64, 32, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(64, 0, 16, 255));
-    bool bSaveSchedule = ImGui::Button("Save Schedule");
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.18f, 0.36f, 0.36f, 1.00f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.46f, 0.45f, 1.00f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.29f, 0.62f, 0.60f, 1.00f));
+    bool bSaveSchedule = ImGui::Button("Save Schedule", ImVec2(UIPx(130.0f), 0.0f));
     ImGui::PopStyleColor(3);
 
     if (bLoadSchedule)
@@ -399,7 +552,6 @@ void DrawMainGUI()
         std::vector<std::string> filters = { "Lumes Schedule", "*.lsc" };
         open_file = std::make_shared<pfd::open_file>("Choose file", "C:\\", filters);
 #endif
-
     }
 
     if (bSaveSchedule)
@@ -425,5 +577,5 @@ void DrawMainGUI()
     CSL_DrawUI();
 
     ImGui::End();
-    ImGui::PopStyleVar(1);
+    ImGui::PopStyleVar(2);
 }

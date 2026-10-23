@@ -69,15 +69,17 @@ void ChooseDays_SaveJson(nlohmann::json& jsonfile)
 
 void ChooseDays_DrawUI()
 {
-    ImGui::Text("Active Days");
-    ImGui::Checkbox("Monday", &bDays[1]); ImGui::SameLine();
-    ImGui::Checkbox("Tuesday", &bDays[2]); ImGui::SameLine();
-    ImGui::Checkbox("Wednesday", &bDays[3]); ImGui::SameLine();
-    ImGui::Checkbox("Thursday", &bDays[4]);
-    ImGui::Checkbox("Friday", &bDays[5]); ImGui::SameLine();
-    ImGui::Checkbox("Saturday", &bDays[6]); ImGui::SameLine();
-    ImGui::Checkbox("Sunday", &bDays[0]);
+    DrawSectionHeader("Active Days");
 
+    ImGui::Checkbox("Mon", &bDays[1]); ImGui::SameLine(0.0f, UIPx(12.0f));
+    ImGui::Checkbox("Tue", &bDays[2]); ImGui::SameLine(0.0f, UIPx(12.0f));
+    ImGui::Checkbox("Wed", &bDays[3]); ImGui::SameLine(0.0f, UIPx(12.0f));
+    ImGui::Checkbox("Thu", &bDays[4]); ImGui::SameLine(0.0f, UIPx(12.0f));
+    ImGui::Checkbox("Fri", &bDays[5]); ImGui::SameLine(0.0f, UIPx(12.0f));
+    ImGui::Checkbox("Sat", &bDays[6]); ImGui::SameLine(0.0f, UIPx(12.0f));
+    ImGui::Checkbox("Sun", &bDays[0]);
+
+    ImGui::Spacing();
     if (ImGui::Checkbox("Per-day end times", &g_bUsePerDayEndTimes))
     {
         if (g_bUsePerDayEndTimes)
@@ -86,12 +88,16 @@ void ChooseDays_DrawUI()
 
     if (g_bUsePerDayEndTimes)
     {
-        ImGui::Text("Ending Time (per day)");
+        ImGui::Spacing();
+        const float labelCol = UIPx(148.0f);
         for (int i = 0; i < 7; i++)
         {
-            ImGui::Text("%s", kDayNames[i]); ImGui::SameLine();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("%s", kDayNames[i]);
+            ImGui::SameLine(labelCol);
             createTimeCombo(kDayNames[i], end_hour_by_day[i], end_minute_by_day[i]);
         }
+        ImGui::Spacing();
         if (ImGui::Button("Copy global end time to all days"))
             SyncAllDayEndTimesFromGlobal();
     }
