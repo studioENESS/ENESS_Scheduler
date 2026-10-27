@@ -591,7 +591,8 @@ void UpdateGpioSchedules(bool& outLightsOn, bool& outSoundsOn)
     outLightsOn = isFixedScheduleActive(&localTime,
                                         lights_start_hour, lights_start_minute,
                                         lights_end_hour, lights_end_minute);
-    outSoundsOn = isFixedScheduleActive(&localTime,
+    outSoundsOn = !isSoundsDateDisabled(&localTime) &&
+                  isFixedScheduleActive(&localTime,
                                         sounds_start_hour, sounds_start_minute,
                                         sounds_end_hour, sounds_end_minute);
 

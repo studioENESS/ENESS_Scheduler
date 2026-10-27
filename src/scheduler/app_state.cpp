@@ -23,6 +23,33 @@ int sounds_start_minute = 55;
 int sounds_end_hour = 20;
 int sounds_end_minute = 55;
 
+tm MakeCalendarDate(int year, int month, int day)
+{
+    tm date{};
+    date.tm_year = year - 1900;
+    date.tm_mon = month - 1;
+    date.tm_mday = day;
+    date.tm_hour = 12;
+    date.tm_isdst = -1;
+    std::mktime(&date);
+    return date;
+}
+
+std::vector<tm> sounds_disabled_dates = {
+    MakeCalendarDate(2026, 10, 27),
+    MakeCalendarDate(2026, 11, 2),
+    MakeCalendarDate(2026, 11, 3),
+};
+
+void SetDefaultSoundsDisabledDates()
+{
+    sounds_disabled_dates = {
+        MakeCalendarDate(2026, 10, 27),
+        MakeCalendarDate(2026, 11, 2),
+        MakeCalendarDate(2026, 11, 3),
+    };
+}
+
 bool HasTwoScripts()
 {
     return !content_filename.empty() && !client_filename.empty();

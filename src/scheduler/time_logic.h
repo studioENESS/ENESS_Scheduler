@@ -9,3 +9,5 @@ bool isDateBetween(tm* time, tm* start, tm* end);
 bool isTimeInRange(tm* time, int _sh, int _sm, int _eh, int _em);
 bool isTimeBetween(tm* time, int cur_start_hour, int cur_start_minute, int cur_end_hour, int cur_end_minute);
 bool isFixedScheduleActive(tm* time, int cur_start_hour, int cur_start_minute, int cur_end_hour, int cur_end_minute);
+bool isSameCalendarDate(const tm* a, const tm* b);
+bool isSoundsDateDisabled(const tm* time);

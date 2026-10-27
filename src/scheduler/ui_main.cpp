@@ -10,6 +10,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "imguidatechooser.h"
 
 #include "app_state.h"
 #include "platform.h"
@@ -442,9 +443,19 @@ void DrawMainGUI()
         std::snprintf(soundsLabel, sizeof(soundsLabel), "Sounds (GPIO %d)", GPIO_PIN_SOUNDS);
         DrawFormLabel(soundsLabel, labelCol);
         if (soundsOn)
+        {
             ImGui::TextColored(colOk, "ON");
+        }
         else
-            ImGui::TextColored(colWarn, "OFF  ·  Out of Scheduled Time");
+        {
+            const time_t now = time(0);
+            tm nowTm{};
+            localtime_s(&nowTm, &now);
+            if (isSoundsDateDisabled(&nowTm))
+                ImGui::TextColored(colWarn, "OFF  ·  Disabled for Date");
+            else
+                ImGui::TextColored(colWarn, "OFF  ·  Out of Scheduled Time");
+        }
     }
 
     if (ScriptLibraryFeatureEnabled)
@@ -526,6 +537,67 @@ void DrawMainGUI()
             ImGui::SameLine(0.0f, UIPx(8.0f));
             ImGui::AlignTextToFramePadding();
             ImGui::TextDisabled("next day");
+        }
+
+        DrawFormLabel("No-Sound Dates", labelCol);
+        if (ImGui::Button("+ Add Date##AddMutedSoundDate"))
+        {
+            tm newDate{};
+            ImGui::SetDateToday(&newDate);
+            newDate.tm_hour = 12;
+            newDate.tm_isdst = -1;
+            std::mktime(&newDate);
+            sounds_disabled_dates.push_back(newDate);
+        }
+        if (!sounds_disabled_dates.empty())
+        {
+            ImGui::SameLine(0.0f, UIPx(8.0f));
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("(%d configured)", (int)sounds_disabled_dates.size());
+        }
+
+        const time_t now = time(0);
+        tm todayTm{};
+        localtime_s(&todayTm, &now);
+
+        int removeIdx = -1;
+        for (int i = 0; i < (int)sounds_disabled_dates.size(); ++i)
+        {
+            ImGui::PushID(i);
+            char rowLabel[32];
+            std::snprintf(rowLabel, sizeof(rowLabel), "Date %d", i + 1);
+            DrawFormLabel(rowLabel, labelCol);
+
+            ImGui::SetNextItemWidth(UIPx(160.0f));
+            if (ImGui::DateChooser("##SoundDisabledDate", sounds_disabled_dates[i], "%d.%m.%Y"))
+            {
+                sounds_disabled_dates[i].tm_hour = 12;
+                sounds_disabled_dates[i].tm_isdst = -1;
+                std::mktime(&sounds_disabled_dates[i]);
+            }
+
+            ImGui::SameLine(0.0f, UIPx(8.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.45f, 0.18f, 0.20f, 1.00f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.58f, 0.22f, 0.25f, 1.00f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.68f, 0.26f, 0.28f, 1.00f));
+            if (ImGui::Button("Remove"))
+            {
+                removeIdx = i;
+            }
+            ImGui::PopStyleColor(3);
+
+            if (isSameCalendarDate(&todayTm, &sounds_disabled_dates[i]))
+            {
+                ImGui::SameLine(0.0f, UIPx(8.0f));
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextColored(colWarn, "Muted Today");
+            }
+
+            ImGui::PopID();
+        }
+        if (removeIdx >= 0 && removeIdx < (int)sounds_disabled_dates.size())
+        {
+            sounds_disabled_dates.erase(sounds_disabled_dates.begin() + removeIdx);
         }
     }
 

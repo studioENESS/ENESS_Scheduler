@@ -167,7 +167,7 @@ int main(int, char**)
     baseHeight = ScriptLibrary_AdjustWindowHeight(baseHeight);
     const int baseWindowHeight = baseHeight;
     if (HasTwoScripts())
-        baseHeight += 210;
+        baseHeight += 340;
 
     int iWWidth = (int)(baseWidth * dpiScale);
     int iWHeight = (int)(baseHeight * dpiScale);
@@ -188,7 +188,7 @@ int main(int, char**)
 
         if (HasTwoScripts())
         {
-            const int minTwoScriptH = (int)((baseWindowHeight + 210) * GetUIScale());
+            const int minTwoScriptH = (int)((baseWindowHeight + 340) * GetUIScale());
             int curW = 0, curH = 0;
             glfwGetWindowSize(window, &curW, &curH);
             if (curH < minTwoScriptH)

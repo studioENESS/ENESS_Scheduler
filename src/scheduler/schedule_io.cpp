@@ -124,6 +124,90 @@ bool loadSchedule(const char* sFilename)
     else if (jsonfile.contains("time") && jsonfile["time"].is_object() && jsonfile["time"].contains("sounds"))
         loadDailyWindow(jsonfile["time"]["sounds"], sounds_start_hour, sounds_start_minute, sounds_end_hour, sounds_end_minute);
 
+    SetDefaultSoundsDisabledDates();
+    auto parseDisabledDatesArray = [](const nlohmann::json& arr) {
+        if (!arr.is_array())
+            return;
+        sounds_disabled_dates.clear();
+        const time_t now = time(0);
+        tm nowTm{};
+        localtime_s(&nowTm, &now);
+        const int currentYear = nowTm.tm_year + 1900;
+
+        for (const auto& entry : arr)
+        {
+            if (entry.is_string())
+            {
+                const std::string s = entry.get<std::string>();
+                int y = 0, m = 0, d = 0;
+                char sep1 = 0, sep2 = 0;
+                std::istringstream iss(s);
+                if ((iss >> y >> sep1 >> m >> sep2 >> d) && sep1 == '-' && sep2 == '-')
+                {
+                    sounds_disabled_dates.push_back(MakeCalendarDate(y, m, d));
+                }
+                else
+                {
+                    std::istringstream iss2(s);
+                    if ((iss2 >> d >> sep1 >> m) && sep1 == '.')
+                    {
+                        if ((iss2 >> sep2 >> y) && sep2 == '.' && y > 0)
+                        {
+                            if (y < 100)
+                                y += 2000;
+                            sounds_disabled_dates.push_back(MakeCalendarDate(y, m, d));
+                        }
+                        else
+                        {
+                            sounds_disabled_dates.push_back(MakeCalendarDate(currentYear, m, d));
+                        }
+                    }
+                }
+            }
+            else if (entry.is_object())
+            {
+                if (entry.contains("year") && entry.contains("month") && entry.contains("day"))
+                {
+                    int y = entry["year"].get<int>();
+                    int m = entry["month"].get<int>();
+                    int d = entry["day"].get<int>();
+                    sounds_disabled_dates.push_back(MakeCalendarDate(y, m, d));
+                }
+                else if (entry.contains("Year") && entry.contains("Month") && entry.contains("Day"))
+                {
+                    int y = entry["Year"].get<int>();
+                    if (y < 1900)
+                        y += 1900;
+                    int m = entry["Month"].get<int>() + 1;
+                    int d = entry["Day"].get<int>();
+                    sounds_disabled_dates.push_back(MakeCalendarDate(y, m, d));
+                }
+            }
+        }
+    };
+
+    if (jsonfile.contains("sounds") && jsonfile["sounds"].is_object())
+    {
+        const auto& soundsObj = jsonfile["sounds"];
+        if (soundsObj.contains("disabled_dates"))
+            parseDisabledDatesArray(soundsObj["disabled_dates"]);
+        else if (soundsObj.contains("mute_dates"))
+            parseDisabledDatesArray(soundsObj["mute_dates"]);
+    }
+    else if (jsonfile.contains("time") && jsonfile["time"].is_object() &&
+             jsonfile["time"].contains("sounds") && jsonfile["time"]["sounds"].is_object())
+    {
+        const auto& soundsObj = jsonfile["time"]["sounds"];
+        if (soundsObj.contains("disabled_dates"))
+            parseDisabledDatesArray(soundsObj["disabled_dates"]);
+        else if (soundsObj.contains("mute_dates"))
+            parseDisabledDatesArray(soundsObj["mute_dates"]);
+    }
+    else if (jsonfile.contains("sounds_disabled_dates"))
+    {
+        parseDisabledDatesArray(jsonfile["sounds_disabled_dates"]);
+    }
+
     ResetGpioStateCache();
 
     MultiScripts_LoadJson(jsonfile);
@@ -176,6 +260,14 @@ bool saveSchedule(const char* sFilename)
         jsonfile["sounds"]["start"]["minute"] = sounds_start_minute;
         jsonfile["sounds"]["end"]["hour"] = sounds_end_hour;
         jsonfile["sounds"]["end"]["minute"] = sounds_end_minute;
+        jsonfile["sounds"]["disabled_dates"] = nlohmann::json::array();
+        for (const auto& d : sounds_disabled_dates)
+        {
+            char dateBuf[16];
+            std::snprintf(dateBuf, sizeof(dateBuf), "%04d-%02d-%02d",
+                          d.tm_year + 1900, d.tm_mon + 1, d.tm_mday);
+            jsonfile["sounds"]["disabled_dates"].push_back(dateBuf);
+        }
     }
 
     ChooseDays_SaveJson(jsonfile);

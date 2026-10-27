@@ -162,3 +162,41 @@ bool isFixedScheduleActive(tm* time, int cur_start_hour, int cur_start_minute, i
 
     return isTimeInRange(time, cur_start_hour, cur_start_minute, cur_end_hour, cur_end_minute);
 }
+
+bool isSameCalendarDate(const tm* a, const tm* b)
+{
+    if (!a || !b)
+        return false;
+    return a->tm_year == b->tm_year &&
+           a->tm_mon == b->tm_mon &&
+           a->tm_mday == b->tm_mday;
+}
+
+bool isSoundsDateDisabled(const tm* time)
+{
+    if (!time || sounds_disabled_dates.empty())
+        return false;
+
+    for (const auto& disabledDate : sounds_disabled_dates)
+    {
+        if (isSameCalendarDate(time, &disabledDate))
+            return true;
+    }
+
+    if (scheduleCrossesMidnight(sounds_start_hour, sounds_start_minute, sounds_end_hour, sounds_end_minute) &&
+        isMorningPortion(time, sounds_end_hour, sounds_end_minute))
+    {
+        tm yesterday = *time;
+        yesterday.tm_hour = 12;
+        yesterday.tm_mday -= 1;
+        yesterday.tm_isdst = -1;
+        std::mktime(&yesterday);
+        for (const auto& disabledDate : sounds_disabled_dates)
+        {
+            if (isSameCalendarDate(&yesterday, &disabledDate))
+                return true;
+        }
+    }
+
+    return false;
+}

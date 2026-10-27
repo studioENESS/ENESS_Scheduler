@@ -66,6 +66,10 @@ extern int sounds_start_hour;
 extern int sounds_start_minute;
 extern int sounds_end_hour;
 extern int sounds_end_minute;
+extern std::vector<tm> sounds_disabled_dates;
+
+tm MakeCalendarDate(int year, int month, int day);
+void SetDefaultSoundsDisabledDates();
 
 bool HasTwoScripts();
 
